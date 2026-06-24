@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gears of Desert - Enciclopédia Wiki</title>
+    <style>
+        /* ==========================================================================
+           CONFIGURAÇÕES GERAIS E PALETA DE CORES (INDUSTRIAL / FOSCA)
+           ========================================================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #121314;
+            color: #DCA874; /* Tom Areia Base */
+            min-height: 100vh;
+            line-height: 1.6;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* EFEITO DE TELA DE TERMINAL ANTIGO (SCANLINES SUTIS) */
+        .bg-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 999;
+            opacity: 0.04;
+            background-image: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                #000 2px,
+                #000 4px
+            );
+            pointer-events: none;
+        }
+
+        /* ==========================================================================
+           CABEÇALHO FIXO E MENU LATERAL (SIDEBAR)
+           ========================================================================== */
+        header {
+            background-color: #161718;
+            border-bottom: 2px solid #A35A38; /* Detalhes Industriais */
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 90;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        }
+
+        .menu-btn {
+            background: none;
+            border: none;
+            color: #DCA874;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px 10px;
+            margin-right: 20px;
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .menu-btn:hover { 
+            color: #BD4E2E; 
+            transform: scale(1.1);
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+            color: #ffffff;
+            text-transform: uppercase;
+            text-shadow: 0 0 5px rgba(220, 168, 116, 0.3);
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100%;
+            background-color: #121314;
+            border-right: 3px solid #5A4470; /* Detalhes Místicos */
+            z-index: 100;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 5px 0 25px rgba(0,0,0,0.7);
+        }
+
+        .sidebar.active { transform: translateX(0); }
+
+        .close-btn {
+            align-self: flex-end;
+            background: none;
+            border: none;
+            color: #DCA874;
+            font-size: 20px;
+            cursor: pointer;
+            margin-bottom: 25px;
+            font-family: monospace;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover { color: #BD4E2E; }
+
+        .logo-container {
+            width: 100%;
+            min-height: 80px;
+            border: 1px dashed #A35A38;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 35px;
+            text-align: center;
+            padding: 10px;
+            background: rgba(163, 90, 56, 0.05);
+        }
+
+        .logo-placeholder {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #DCA874;
+            letter-spacing: 2px;
+            font-family: monospace;
+        }
+
+        .nav-links { display: flex; flex-direction: column; gap: 12px; }
+
+        .nav-links a {
+            color: #DCA874;
+            text-decoration: none;
+            padding: 12px 15px;
+            background-color: #161718;
+            border-left: 4px solid #A35A38;
+            font-weight: bold;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            font-family: monospace;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background-color: #1f1b24;
+            border-left-color: #BD4E2E;
+            color: #ffffff;
+            transform: translateX(5px);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 95;
+            display: none;
+            backdrop-filter: blur(3px);
+        }
+
+        .sidebar-overlay.active { display: block; }
+
+        /* ==========================================================================
+           WIKI: PAINEL DO TERMINAL E SISTEMA DE ABAS
+           ========================================================================== */
+        main {
+            max-width: 1100px;
+            margin: 100px auto 40px auto;
+            padding: 20px;
+        }
+
+        .terminal-header {
+            background-color: #161718;
+            border: 1px solid #3a3b3d;
+            border-left: 5px solid #8c9675; /* Verde Terminal */
+            padding: 15px 20px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 2px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .terminal-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ffffff;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-family: monospace;
+        }
+
+        .terminal-status {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            color: #8c9675; 
+            text-transform: uppercase;
+            animation: pulse 2s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        /* NAVEGAÇÃO POR ABAS EM GRID */
+        .wiki-tabs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+            margin-bottom: 35px;
+        }
+
+        .tab-btn {
+            background-color: #161718;
+            border: 1px solid #2d2e30;
+            color: #A35A38;
+            padding: 15px 10px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.25s ease;
+            position: relative;
+            border-radius: 2px;
+            font-family: monospace;
+        }
+
+        .tab-btn:hover {
+            background-color: #1e1f21;
+            color: #DCA874;
+            border-color: #A35A38;
+        }
+
+        /* Cores Ativas Customizadas por Linha Temática */
+        .tab-btn.active {
+            color: #ffffff !important;
+            background-color: #161718;
+            box-shadow: inset 0 -2px 0 #ffffff;
+        }
+
+        .tab-btn.tab-universo.active { border-color: #DCA874; box-shadow: inset 0 -3px 0 #DCA874; color: #DCA874 !important; }
+        .tab-btn.tab-fluxos.active { border-color: #5A4470; box-shadow: inset 0 -3px 0 #5A4470; color: #9d83b6 !important; }
+        .tab-btn.tab-historia.active { border-color: #A35A38; box-shadow: inset 0 -3px 0 #A35A38; color: #e28e65 !important; }
+        .tab-btn.tab-tecnologia.active { border-color: #8c9675; box-shadow: inset 0 -3px 0 #8c9675; color: #b4c297 !important; }
+        .tab-btn.tab-gears.active { border-color: #BD4E2E; box-shadow: inset 0 -3px 0 #BD4E2E; color: #f17653 !important; }
+
+        .tab-content {
+            display: none;
+            animation: terminalBlurFade 0.35s ease-out forwards;
+        }
+
+        .tab-content.active { display: block; }
+
+        @keyframes terminalBlurFade {
+            0% { opacity: 0; filter: blur(4px); transform: translateY(5px); }
+            100% { opacity: 1; filter: blur(0); transform: translateY(0); }
+        }
+
+        /* ==========================================================================
+           CARTÕES DE PASTA EXPANSÍVEIS (ACCORDIONS)
+           ========================================================================== */
+        .data-folder {
+            background-color: #161718;
+            border: 1px solid #2d2e30;
+            margin-bottom: 15px;
+            border-radius: 2px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .folder-btn {
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding: 18px 20px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+            border-left: 4px solid #2d2e30;
+            letter-spacing: 1px;
+        }
+
+        .folder-btn:hover {
+            background-color: #1e1f21;
+        }
+
+        .folder-indicator {
+            font-family: monospace;
+            font-size: 1.1rem;
+            color: #8c9675;
+            transition: color 0.2s;
+        }
+
+        /* Estilização Dinâmica Ativa via JS */
+        .data-folder.active .folder-btn {
+            background-color: #1b1c1e;
+        }
+        
+        .tab-universo .data-folder.active .folder-btn { border-left-color: #DCA874; }
+        .tab-fluxos .data-folder.active .folder-btn { border-left-color: #5A4470; }
+        .tab-historia .data-folder.active .folder-btn { border-left-color: #A35A38; }
+        .tab-tecnologia .data-folder.active .folder-btn { border-left-color: #8c9675; }
+        .tab-gears .data-folder.active .folder-btn { border-left-color: #BD4E2E; }
+
+        .folder-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: #121314;
+        }
+
+        .folder-content {
+            padding: 25px 20px;
+            border-top: 1px dashed #2d2e30;
+        }
+
+        /* Elementos Internos de Conteúdo */
+        .folder-content p {
+            margin-bottom: 15px;
+            color: #DCA874;
+            text-align: justify;
+            font-size: 0.98rem;
+        }
+
+        .folder-content p:last-child, .folder-content ul:last-child {
+            margin-bottom: 0;
+        }
+
+        .folder-content ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+            list-style-type: square;
+            color: #DCA874;
+        }
+
+        .folder-content li {
+            margin-bottom: 8px;
+        }
+
+        .sub-header {
+            font-size: 1rem;
+            color: #ffffff;
+            margin: 20px 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #2d2e30;
+            padding-bottom: 5px;
+            font-family: monospace;
+        }
+
+        .sub-header:first-of-type {
+            margin-top: 0;
+        }
+
+        /* Highlight Text */
+        .highlight-purple { color: #9d83b6; font-weight: bold; }
+        .highlight-rust { color: #A35A38; font-weight: bold; }
+        .highlight-red { color: #BD4E2E; font-weight: bold; }
+        .highlight-green { color: #8c9675; font-weight: bold; }
+
+        /* ==========================================================================
+           RODAPÉ DE CRÉDITOS
+           ========================================================================== */
+        footer {
+            border-top: 1px solid #2d2e30;
+            background-color: #161718;
+            padding: 25px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #6A6D71;
+            margin-top: 80px;
+            font-family: monospace;
+            letter-spacing: 1px;
+        }
+
+        /* RESPONSIVIDADE */
+        @media (max-width: 768px) {
+            .wiki-tabs {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            main {
+                margin-top: 90px;
+                padding: 10px;
+            }
+            header h1 {
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .wiki-tabs {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-overlay"></div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMenu()"></div>
+
+    <header>
+        <button class="menu-btn" onclick="toggleMenu()" aria-label="Abrir Menu">☰</button>
+        <h1>Gears of Desert</h1>
+    </header>
+
+    <div class="sidebar" id="sidebar">
+        <button class="close-btn" onclick="toggleMenu()">✕ [FECHAR]</button>
+        <div class="logo-container">
+            <span class="logo-placeholder">GEARS OF DESERT<br>[BANCO_DADOS]</span>
+      </div>
+    <nav class="nav-links">
+        <a href="index.html">🏠 Início / Lore</a>
+        <a href="regras.html" class="active">📖 Livro de Regras</a>
+        <a href="wiki.html">🔍 Enciclopédia Wiki</a>
+        <a href="fichas.html">👤 Minhas Fichas</a>
+        <a href="mestre.html">🌋 Painel do Mestre</a>
+        
+       <a href="login.html" id="btn-login-google" onclick="window.fazerLoginComGoogle()" style="color: #63c0a0; font-weight: bold; margin-top: 15px;">🔑 Terminal: Login</a>
+    </nav>
+</div>
+
+    <main>
+        
+        <div class="terminal-header">
+            <div class="terminal-title">TERMINAL_WIKI_ARQUIVOS</div>
+            <div class="terminal-status" id="clock">[ REQUISIÇÃO COMPLETA ]</div>
+        </div>
+
+        <div class="wiki-tabs">
+            <button class="tab-btn tab-universo active" onclick="openTab(event, 'universo')">1. O Universo</button>
+            <button class="tab-btn tab-fluxos" onclick="openTab(event, 'fluxos')">2. Os Fluxos</button>
+            <button class="tab-btn tab-historia" onclick="openTab(event, 'historia')">3. História</button>
+            <button class="tab-btn tab-tecnologia" onclick="openTab(event, 'tecnologia')">4. Tecnologia</button>
+            <button class="tab-btn tab-gears" onclick="openTab(event, 'gears')">5. Os Gears</button>
+        </div>
+
+        <div id="universo" class="tab-content tab-universo active">
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    Visão Geral do Cosmos
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <p>Gears Of Desert se passa em um mundo pós-apocalíptico vasto, fragmentado e instável, onde a realidade não é sustentada por leis naturais comuns, mas por estruturas chamadas Fluxos.</p>
+                        <p>A sobrevivência não depende apenas de força ou tecnologia, mas da capacidade de lidar com os Fluxos e suas consequências.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    Composição do Mundo Atual
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <p>O ecossistema terrestre conhecido é categorizado estritamente pelas seguintes divisões:</p>
+                        <ul>
+                            <li>Desertos infinitos e regiões inabitáveis</li>
+                            <li>Cidades quebradas e ruínas industriais</li>
+                            <li>Zonas de distorção espiritual</li>
+                            <li>Facções humanas e não-humanas em conflito constante</li>
+                            <li>Relíquias antigas que reagem a forças invisíveis</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="fluxos" class="tab-content tab-fluxos">
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    A Base da Realidade e Natureza
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <p>Os Fluxos são os fundamentos absolutos da existência. <span class="highlight-purple">Eles não são magia.</span> Eles são a estrutura que define tudo o que existe. Cada coisa viva ou morta está conectada a pelo menos um Fluxo.</p>
+                        <p>Eles representam: existência física, consciência, espiritualidade, conexão entre coisas, autoridade e dominação, corrupção e deformação, morte e colapso. Eles não foram criados nem descobertos — sempre existiram.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    Categorias dos Fluxos
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <div class="sub-header">🌱 Vitais (Ligados à existência individual)</div>
+                        <ul>
+                            <li><strong>Carne</strong> → corpo, instinto, adaptação</li>
+                            <li><strong>Alma</strong> → identidade espiritual</li>
+                            <li><strong>Cognição</strong> → mente, percepção, consciência</li>
+                        </ul>
+
+                        <div class="sub-header">⚙️ Transcendentes (Ligados a controle e conexão)</div>
+                        <ul>
+                            <li><strong>Corrente</strong> → vínculo e sincronização</li>
+                            <li><strong>Trono</strong> → autoridade e domínio</li>
+                        </ul>
+
+                        <div class="sub-header">☠️ Ruptura (Ligados à quebra da realidade)</div>
+                        <ul>
+                            <li><strong>Corrupção</strong> → deformação e instabilidade</li>
+                            <li><strong>Morte</strong> → fim e apagamento</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    Matriz de Interação entre Fluxos
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <p>A combinação ou choque entre diferentes naturezas estruturais gera reações específicas e absolutas:</p>
+                        <ul>
+                            <li><strong>Vital + Vital</strong> → Harmonia</li>
+                            <li><strong>Vital + Transcendente</strong> → Ascensão</li>
+                            <li><strong>Vital + Ruptura</strong> → Deformação</li>
+                            <li><strong>Transcendente + Transcendente</strong> → Soberania</li>
+                            <li><strong>Transcendente + Ruptura</strong> → Tirania</li>
+                            <li><strong>Ruptura + Ruptura</strong> → Calamidade</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="historia" class="tab-content tab-historia">
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    Cronologia da Existência: Eras I a III
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <p><span class="highlight-rust">⚙️ I — ORIGEM ABSOLUTA:</span> Os Fluxos sempre existiram. Civilizações antigas nunca os criaram nem controlaram totalmente, apenas interpretaram fragmentos da sua natureza.</p>
+                        
+                        <p><span class="highlight-rust">📖 II — LÍNGUA DIVINA (1500 A.C):</span> Surge a Língua Divina, um sistema fragmentado encontrado em ruínas e artefatos. Não era uma língua falada, mas um método de interação com os Fluxos. Permitia: ativação de fenômenos, criação de relíquias, execução de rituais primitivos e compreensão parcial dos Fluxos. Isso origina os primeiros cultos e práticas místicas.</p>
+                        
+                        <p><span class="highlight-rust">⚔️ III — ERA DAS GUERRAS SANTAS (2600 D.C):</span> Guerra global envolvendo religiões, Fluxos, entidades superiores e interpretações conflitantes da realidade. Fluxos são usados como arma, ocorre a guerra contra entidades chamadas “Satan” e o confronto direto com “Deus”. Deus morre. Após isso, a estrutura dos Fluxos entra em colapso, a realidade se torna instável e Satan é selado no Inferno.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    Cronologia da Existência: Eras IV a VI
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <p><span class="highlight-rust">💀 IV — COLAPSO (2600 → 8700 D.C):</span> Período de decadência extrema, guerras prolongadas, destruição civilizacional e perda quase total do conhecimento dos Fluxos. Como resultado, 97% da humanidade perde a conexão com os Fluxos, a magia quase desaparece e as relíquias tornam-se dormentes.</p>
+                        
+                        <p><span class="highlight-rust">🌑 V — RETORNO DOS FLUXOS (8700 D.C):</span> Fluxos começam a reaparecer lentamente. Cultos isolados reativam relíquias, entidades antigas voltam a influenciar o mundo e a magia retorna de forma instável e perigosa.</p>
+                        
+                        <p><span class="highlight-rust">🌍 VI — ERA ATUAL (10000 D.C):</span> O mundo atual é pós-apocalíptico, fragmentado, instável e cheio de zonas corrompidas. Os Fluxos existem de forma instável, a magia depende de relíquias e rituais, e a tecnologia/ciência se adaptou para funcionar de forma híbrida (ciência + Fluxos + sucata).</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tecnologia" class="tab-content tab-tecnologia">
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    Adaptação Mecânica e de Engenharia
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <p>A tecnologia atual não é moderna nem antiga, ela é adaptada ao pós-colapso dos Fluxos. Sistemas funcionais incluem:</p>
+                        <ul>
+                            <li>Máquinas movidas por Fluxos estabilizados.</li>
+                            <li>Veículos alimentados por energia biológica ou espiritual.</li>
+                            <li>Relíquias integradas a sistemas mecânicos complexos de engenharia móvel.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    Manifestações e Exemplos Extremos
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <p>Em áreas remotas ou postos avançados de alta exploração, registram-se os seguintes aparatos mecânico-biológicos:</p>
+                        <ul>
+                            <li>Combustível baseado estritamente em Fluxo de Carne (biomassa espiritual).</li>
+                            <li>Máquinas híbridas construídas de modo simbiótico entre o orgânico e o mecânico.</li>
+                            <li>Estruturas vivas de suporte ou edificação que se mostram parcialmente conscientes.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="gears" class="tab-content tab-gears">
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    Origem, Estrutura e Ideologia
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <p><span class="highlight-red">🧍 ORIGEM:</span> Surgem como resposta à exclusão humana global. Formados por sobreviventes rejeitados, famílias de ex-cientistas/exploradores e descendentes de estudiosos dos Fluxos.</p>
+                        
+                        <p><span class="highlight-red">⚙️ ESTRUTURA:</span> Organização inteiramente descentralizada. Uma rede de sobrevivência, exploration, mercenários, pesquisadores e caçadores de relíquias.</p>
+                        
+                        <p><span class="highlight-red">🧭 IDEOLOGIA:</span> Não constituem um governo, uma organização religiosa ou um exército oficial. Eles são totalmente focados em sobrevivência, adaptação ativa, investigação minuciosa do mundo quebrado e proteção mútua.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    Quartel-General: Barca Zero
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <p>A <span class="highlight-red">Barca Zero</span> é a base principal dos Gears. Trata-se de um enorme navio voador que foi meticulosamente construído e mantido pelos fundadores originais da facção.</p>
+                        <p>Sua utilidade técnica e social engloba:</p>
+                        <ul>
+                            <li>Centro de reuniões globais das lideranças e células.</li>
+                            <li>Abrigo móvel estratégico acima das ameaças terrestres.</li>
+                            <li>Arquivo mestre para armazenamento seguro de relíquias e conhecimento recuperado.</li>
+                            <li>Símbolo máximo de resiliência e sobrevivência da espécie humana.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-folder">
+                <button class="folder-btn" onclick="toggleAccordion(this)">
+                    Posicionamento Geopolítico
+                    <span class="folder-indicator">[+]</span>
+                </button>
+                <div class="folder-body">
+                    <div class="folder-content">
+                        <p>A presença dos Gears no mundo é marcadamente ambígua: eles são ativamente odiados pelas facções dominantes de territórios fortificados, mas ao mesmo tempo contratados de maneira compulsória e frequente para missões de altíssimo risco e vitais à exploração e mapeamento de zonas de extrema instabilidade.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer>
+        &copy; 2026 Gears of Desert RPG System. Desenvolvido em colaboração com Assistência de Inteligência Artificial. Todos os direitos reservados de lore canônica.
+    </footer>
+
+    <script>
+        /* SCRIPT DE ACIONAMENTO DO MENU LATERAL */
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        /* SCRIPT DE ALTERNÂNCIA DE ABAS EM GRID DINDÂMICO */
+        function openTab(evt, tabId) {
+            // Esconde todas as abas
+            const contents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < contents.length; i++) {
+                contents[i].classList.remove('active');
+            }
+
+            // Desativa botões das abas
+            const buttons = document.getElementsByClassName('tab-btn');
+            for (let i = 0; i < buttons.length; i++) {
+                buttons[i].classList.remove('active');
+            }
+
+            // Ativa o conteúdo específico e o botão atual
+            document.getElementById(tabId).classList.add('active');
+            evt.currentTarget.classList.add('active');
+            
+            // Fecha accordions abertos em outras transições se necessário
+            const openFolders = document.querySelectorAll('.data-folder.active');
+            openFolders.forEach(folder => {
+                folder.classList.remove('active');
+                folder.querySelector('.folder-body').style.maxHeight = null;
+                folder.querySelector('.folder-indicator').innerText = '[+]';
+            });
+        }
+
+        /* SCRIPT DE CARTÕES DE PASTA EXPANSÍVEIS (ACCORDIONS) WITH SMOOTH TRANSITION */
+        function toggleAccordion(element) {
+            const folder = element.parentElement;
+            const body = folder.querySelector('.folder-body');
+            const indicator = element.querySelector('.folder-indicator');
+
+            folder.classList.toggle('active');
+
+            if (folder.classList.contains('active')) {
+                body.style.maxHeight = body.scrollHeight + "px";
+                indicator.innerText = '[-]';
+            } else {
+                body.style.maxHeight = null;
+                indicator.innerText = '[+]';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gears of Desert - Livro de Regras</title>
+    <style>
+        /* ==========================================================================
+           CONFIGURAÇÕES GERAIS E PALETA DE CORES (MANUAL FOSCO / INDUSTRIAL)
+           ========================================================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #121314;
+            color: #DCA874; /* Tom Areia Base */
+            min-height: 100vh;
+            line-height: 1.6;
+            position: relative;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* EFEITO DE TELA DE TERMINAL ANTIGO (SCANLINES SUTIS) */
+        .bg-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 999;
+            opacity: 0.04;
+            background-image: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                #000 2px,
+                #000 4px
+            );
+            pointer-events: none;
+        }
+
+        /* ==========================================================================
+           CABEÇALHO FIXO E MENU LATERAL (SIDEBAR)
+           ========================================================================== */
+        header {
+            background-color: #161718;
+            border-bottom: 2px solid #A35A38; /* Ferrugem */
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 90;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .menu-btn {
+            background: none;
+            border: none;
+            color: #DCA874;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px 10px;
+            margin-right: 20px;
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .menu-btn:hover { 
+            color: #BD4E2E; 
+            transform: scale(1.1);
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+            color: #ffffff;
+            text-transform: uppercase;
+            text-shadow: 0 0 5px rgba(220, 168, 116, 0.3);
+        }
+
+        .system-status {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            color: #6A6D71; /* Terminal Gray */
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid #2d2e30;
+            padding: 6px 12px;
+            background-color: #121314;
+            border-radius: 2px;
+        }
+
+        .system-status span {
+            color: #A35A38;
+            font-weight: bold;
+        }
+
+        /* SIDEBAR DIRECIONAL */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100%;
+            background-color: #121314;
+            border-right: 3px solid #5A4470; /* Roxo - Fluxos */
+            z-index: 100;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 5px 0 25px rgba(0,0,0,0.7);
+        }
+
+        .sidebar.active { transform: translateX(0); }
+
+        .close-btn {
+            align-self: flex-end;
+            background: none;
+            border: none;
+            color: #DCA874;
+            font-size: 20px;
+            cursor: pointer;
+            margin-bottom: 25px;
+            font-family: monospace;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover { color: #BD4E2E; }
+
+        .logo-container {
+            width: 100%;
+            min-height: 80px;
+            border: 1px dashed #A35A38;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 35px;
+            text-align: center;
+            padding: 10px;
+            background: rgba(163, 90, 56, 0.05);
+        }
+
+        .logo-placeholder {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #DCA874;
+            letter-spacing: 2px;
+            font-family: monospace;
+        }
+
+        .nav-links { display: flex; flex-direction: column; gap: 12px; }
+
+        .nav-links a {
+            color: #DCA874;
+            text-decoration: none;
+            padding: 12px 15px;
+            background-color: #161718;
+            border-left: 4px solid #A35A38;
+            font-weight: bold;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            font-family: monospace;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background-color: #1f1b24;
+            border-left-color: #BD4E2E;
+            color: #ffffff;
+            transform: translateX(5px);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 95;
+            display: none;
+            backdrop-filter: blur(3px);
+        }
+
+        .sidebar-overlay.active { display: block; }
+
+        /* ==========================================================================
+           CONTEÚDO PRINCIPAL (MANUAL DE REGRAS)
+           ========================================================================== */
+        main {
+            max-width: 900px;
+            width: 100%;
+            margin: 110px auto 40px auto;
+            padding: 0 20px;
+        }
+
+        .manual-header {
+            background-color: #161718;
+            border: 1px solid #2d2e30;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-radius: 2px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.6);
+        }
+
+        .manual-header h2 {
+            font-size: 1.4rem;
+            text-transform: uppercase;
+            font-family: monospace;
+            color: #ffffff;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #A35A38;
+            padding-bottom: 8px;
+        }
+
+        .manual-header p {
+            font-size: 0.95rem;
+            color: #DCA874;
+            margin-bottom: 10px;
+        }
+
+        .manual-header ul {
+            margin-left: 20px;
+            list-style-type: square;
+            font-size: 0.9rem;
+        }
+
+        /* SISTEMA DE ACCORDIONS */
+        .accordion-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .accordion-item {
+            background-color: #161718;
+            border: 1px solid #2d2e30;
+            border-radius: 2px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: border-color 0.3s;
+        }
+
+        .accordion-item:hover {
+            border-color: #444547;
+        }
+
+        .accordion-header {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 20px;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            color: #ffffff;
+            font-size: 1.15rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-family: monospace;
+            letter-spacing: 1px;
+            transition: background-color 0.2s;
+        }
+
+        .accordion-header:hover {
+            background-color: rgba(220, 168, 116, 0.02);
+        }
+
+        .accordion-header .indicator {
+            font-family: monospace;
+            color: #A35A38;
+            font-size: 1.1rem;
+            transition: color 0.2s;
+        }
+
+        /* Estado ativo do accordion */
+        .accordion-item.active {
+            border-color: #A35A38;
+        }
+
+        .accordion-item.active .accordion-header {
+            background-color: rgba(163, 90, 56, 0.05);
+            border-bottom: 1px solid #2d2e30;
+        }
+
+        .accordion-item.active .indicator {
+            color: #ffffff;
+        }
+
+        /* Conteúdo expansível */
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .accordion-inner {
+            padding: 25px;
+            font-size: 0.95rem;
+            color: #DCA874;
+        }
+
+        /* ESTILIZAÇÃO INTERNA DO MANUAL */
+        .accordion-inner h5 {
+            font-size: 1rem;
+            color: #ffffff;
+            text-transform: uppercase;
+            font-family: monospace;
+            margin: 20px 0 10px 0;
+            letter-spacing: 0.5px;
+            border-bottom: 1px dashed #2d2e30;
+            padding-bottom: 3px;
+        }
+
+        .accordion-inner h5:first-child {
+            margin-top: 0;
+        }
+
+        .accordion-inner p {
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+
+        .accordion-inner p:last-child {
+            margin-bottom: 0;
+        }
+
+        .accordion-inner ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+            list-style-type: square;
+        }
+
+        .accordion-inner li {
+            margin-bottom: 4px;
+        }
+
+        /* Blocos de Notas / Avisos Estilizados */
+        .manual-box {
+            background-color: rgba(163, 90, 56, 0.04);
+            border-left: 3px solid #A35A38;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .manual-box.flux-style {
+            background-color: rgba(90, 68, 112, 0.04);
+            border-left-color: #5A4470; /* Roxo para Fluxos */
+        }
+
+        .manual-box .box-title {
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            display: block;
+            letter-spacing: 1px;
+        }
+
+        .manual-box.flux-style .box-title {
+            color: #ffffff;
+        }
+
+        .manual-box p {
+            margin-bottom: 0;
+            color: #DCA874;
+        }
+
+        /* Sub-listas organizadas em tabelas simples ou grades para melhor visualização */
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+
+        .matrix-column {
+            background-color: #121314;
+            border: 1px solid #2d2e30;
+            padding: 12px;
+            border-radius: 2px;
+        }
+
+        .matrix-column strong {
+            color: #ffffff;
+            font-family: monospace;
+            display: block;
+            border-bottom: 1px solid #2d2e30;
+            margin-bottom: 8px;
+            padding-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        .matrix-column ul {
+            margin-left: 15px;
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        /* ==========================================================================
+           RODAPÉ DE CRÉDITOS
+           ========================================================================== */
+        footer {
+            border-top: 1px solid #2d2e30;
+            background-color: #161718;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #6A6D71;
+            font-family: monospace;
+            letter-spacing: 1px;
+            width: 100%;
+            margin-top: 40px;
+        }
+
+        /* RESPONSIVIDADE */
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.2rem; }
+            main { margin-top: 100px; }
+            .accordion-header { font-size: 1rem; padding: 15px; }
+            .accordion-inner { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-overlay"></div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMenu()"></div>
+
+    <header>
+        <div class="header-left">
+            <button class="menu-btn" onclick="toggleMenu()" aria-label="Abrir Menu">☰</button>
+            <h1>Gears of Desert</h1>
+        </div>
+        <div class="system-status">
+            MANUAL DE DIRETRIZES // VERSÃO CORE 0.1 // <span>LIVRO DE REGRAS</span>
+        </div>
+    </header>
+
+    <div class="sidebar" id="sidebar">
+        <button class="close-btn" onclick="toggleMenu()">✕ [FECHAR]</button>
+        <div class="logo-container">
+            <span class="logo-placeholder">GEARS OF DESERT<br>[MANUAL_CORE]</span>
+        </div>
+    <nav class="nav-links">
+        <a href="index.html">🏠 Início / Lore</a>
+        <a href="regras.html" class="active">📖 Livro de Regras</a>
+        <a href="wiki.html">🔍 Enciclopédia Wiki</a>
+        <a href="fichas.html">👤 Minhas Fichas</a>
+        <a href="mestre.html">🌋 Painel do Mestre</a>
+        
+       <a href="login.html" id="btn-login-google" onclick="window.fazerLoginComGoogle()" style="color: #63c0a0; font-weight: bold; margin-top: 15px;">🔑 Terminal: Login</a>
+    </nav>
+</div>
+    <main>
+        
+        <div class="manual-header">
+            <h2>Filosofia do Sistema</h2>
+            <p>Gears Of Desert é um RPG focado em equilibrar interpretação e mecânica estruturada, priorizando decisões significativas sem exigir excesso de cálculos. Os personagens evoluem através de suas experiências, descobertas e sobrevivência em um mundo hostil baseado nos seguintes pilares fundamentais:</p>
+            <ul>
+                <li>Sobrevivência sob escassez severa.</li>
+                <li>Explorando os destroços ocultos do passado.</li>
+                <li>Gerenciamento rígido de recursos vitais.</li>
+                <li>Arcar com consequências narrativas e físicas permanentes.</li>
+                <li>Desenvolvimento através de Narrativa Emergente.</li>
+            </ul>
+        </div>
+
+        <div class="accordion-container">
+            
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>1. Introdução ao Sistema</span>
+                    <span class="indicator">[+]</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="accordion-inner">
+                        <h5>Motor de Dados</h5>
+                        <p>A maioria das ações executadas que envolvam riscos ou incertezas utiliza a seguinte fórmula operacional padrão:</p>
+                        
+                        <div class="manual-box">
+                            <span class="box-title">Fórmula Básica de Teste</span>
+                            <p>D20 + Atributo + Perícia</p>
+                        </div>
+
+                        <p>O Mestre define a dificuldade da ação de acordo com o contexto geográfico e narrativo da cena. Exemplos comuns de aplicação estrutural:</p>
+                        <ul>
+                            <li>Escalar uma parede de ruína instável.</li>
+                            <li>Convencer um NPC em um assentamento isolado.</li>
+                            <li>Disparar uma arma mecânica sob pressão.</li>
+                            <li>Conduzir um veículo ou trem pelas trilhas do deserto.</li>
+                            <li>Realizar um ritual de canalização.</li>
+                            <li>Investigar uma zona arqueológica abandonada.</li>
+                        </ul>
+
+                        <h5>Sucessos e Falhas</h5>
+                        <p>Quanto maior o resultado final obtido no teste de dados, melhor e mais controlado será o desempenho do personagem. O Mestre é o único responsável por graduar a dificuldade antes da rolagem.</p>
+                        <p>Escala geral de dificuldades contextuais:</p>
+                        <ul>
+                            <li><strong>Fácil:</strong> Ações rotineiras com pouca pressão ambiental.</li>
+                            <li><strong>Comum:</strong> Desafios padrão encontrados por sobreviventes no deserto.</li>
+                            <li><strong>Difícil:</strong> Situações perigosas que testam os limites técnicos do personagem.</li>
+                            <li><strong>Extrema:</strong> Cenários quase impossíveis, onde a falha cobra um preço severo.</li>
+                        </ul>
+
+                        <div class="manual-box">
+                            <span class="box-title">Nota de Segurança: Contexto Narrativo</span>
+                            <p>A determinação da dificuldade sempre deve considerar o contexto narrativo imediato e o nível de ameaça ambiental envolvido.</p>
+                        </div>
+
+                        <h5>Críticos</h5>
+                        <p>Um acerto crítico ocorre estritamente quando o resultado natural impresso na face do d20 é igual a 20.</p>
+                        <p>Efeitos de um Crítico:</p>
+                        <ul>
+                            <li>Sucesso automático na ação pretendida.</li>
+                            <li>Acerto automático em situações de combate.</li>
+                            <li>Dano real dobrado contra o alvo.</li>
+                        </ul>
+                        <p>Criaturas e NPCs hostis normalmente utilizam o multiplicador de dano reduzido por 1.5 ao invés de dano dobrado. Críticos também abrem margem para gerar efeitos narrativos adicionais e vantajosos definidos inteiramente pelo Mestre.</p>
+
+                        <h5>O Sistema GEA</h5>
+                        <p>O GEA é o sistema universal de classificação mecânica utilizado em Gears Of Desert. Ele é projetado especificamente para mensurar ameaça, dificuldade e risco sistêmico.</p>
+                        <p>Pode ser livremente empregado para classificar: Criaturas, Regiões, Eventos, Missões, Relíquias, Sessões de jogo e Fenômenos meteorológicos/sobrenaturais.</p>
+                        <p><strong>Escala Atual do Protocolo GEA:</strong></p>
+                        <ul>
+                            <li><strong>GEA 0:</strong> Trivial</li>
+                            <li><strong>GEA 1:</strong> Comum</li>
+                            <li><strong>GEA 2:</strong> Perigoso</li>
+                            <li><strong>GEA 3:</strong> Letal</li>
+                            <li><strong>GEA 4:</strong> Extremo</li>
+                            <li><strong>GEA 5:</strong> Aniquilação Total</li>
+                        </ul>
+                        <p>O índice GEA atua como uma referência visual e métrica direta para Mestres e jogadores compreenderem com precisão o nível de letalidade de qualquer situação antes de se engajarem nela.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>2. Criação de Personagem</span>
+                    <span class="indicator">[+]</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="accordion-inner">
+                        <h5>Atributos Fundamentais</h5>
+                        <p>Todo personagem sobrevivente possui cinco atributos que delimitam suas capacidades natas. O valor máximo permitido para qualquer atributo é rigidamente fixado em 12.</p>
+                        
+                        <ul>
+                            <li><strong>Corpo:</strong> Força física, resistência corporal pura, vigor, sobrevivência e tolerância biológica à dor. Utilizado em esforços brutos.</li>
+                            <li><strong>Reflexo:</strong> Velocidade de resposta, coordenação motora, precisão e tempo de reação mecânica. Utilizado em combate e manobras evasivas.</li>
+                            <li><strong>Intelecto:</strong> Capacidade cognitiva de inteligência analítica, investigação, conhecimento acumulado e percepção racional de dados. Utilizado para solucionar problemas lógicos.</li>
+                            <li><strong>Vontade:</strong> Estabilidade mental, determinação psíquica e autocontrole emocional. Fornece resistência contra o medo, opressão psicológica e influências externas.</li>
+                            <li><strong>Conexão:</strong> Afinidade com as forças invisíveis dos Fluxos, capacidade de canalização, espiritualidade e taxa de interação com relíquias antigas.</li>
+                        </ul>
+
+                        <h5>Perícias e Níveis de Domínio</h5>
+                        <p>As perícias traduzem o treinamento formal e a especialização prática do personagem. O valor máximo para qualquer perícia é limitado a 6. A escala de proficiência é segmentada da seguinte forma:</p>
+                        <p><em>0 — Cru | 1-2 — Iniciante | 3-4 — Treinado | 5 — Especialista | 6 — Mestre</em></p>
+
+                        <div class="matrix-grid">
+                            <div class="matrix-column">
+                                <strong>Corpo</strong>
+                                <ul>
+                                    <li>Força</li>
+                                    <li>Atletismo</li>
+                                    <li>Resistência</li>
+                                    <li>Intimidação</li>
+                                    <li>Velocidade</li>
+                                    <li>Luta</li>
+                                </ul>
+                            </div>
+                            <div class="matrix-column">
+                                <strong>Reflexo</strong>
+                                <ul>
+                                    <li>Mira</li>
+                                    <li>Esquiva</li>
+                                    <li>Agilidade</li>
+                                    <li>Acrobacia</li>
+                                    <li>Sigilo</li>
+                                    <li>Controle</li>
+                                </ul>
+                            </div>
+                            <div class="matrix-column">
+                                <strong>Intelecto</strong>
+                                <ul>
+                                    <li>Investigação</li>
+                                    <li>Engenharia</li>
+                                    <li>Ciências</li>
+                                    <li>Medicina</li>
+                                    <li>Conhecimento</li>
+                                    <li>Percepção</li>
+                                    <li>Arqueologia</li>
+                                </ul>
+                            </div>
+                            <div class="matrix-column">
+                                <strong>Vontade</strong>
+                                <ul>
+                                    <li>Foco</li>
+                                    <li>Presença</li>
+                                    <li>Intuição</li>
+                                    <li>Fé</li>
+                                </ul>
+                            </div>
+                            <div class="matrix-column">
+                                <strong>Conexão</strong>
+                                <ul>
+                                    <li>Conexão</li>
+                                    <li>Ritualismo</li>
+                                    <li>Adestramento</li>
+                                    <li>Condução</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="manual-box">
+                            <span class="box-title">Regra do 12 (Saturação de Atributo)</span>
+                            <p>Quando um atributo biológico ou mental atinge o limite máximo de 12, a perícia que estaria associada a ele deixa de ser somada naquele teste específico. O resultado passa a ser fixado estritamente em: <strong>D20 + 12</strong>. O atributo representa um domínio tão absoluto que a especialização técnica não gera benefícios adicionais.</p>
+                        </div>
+
+                        <h5>Classes de Especialização</h5>
+                        <p>As classes em Gears Of Desert representam apenas a especialização inicial e o histórico de ocupação do personagem, não possuindo uma árvore de progressão de níveis engessada.</p>
+                        <p>Ao criar o personagem, selecione uma das seguintes classes para receber instantaneamente <strong>+3 pontos de perícia</strong>, que devem ser alocados dentro do escopo de atuação da classe:</p>
+                        <ul>
+                            <li><strong>Executor:</strong> Especialistas em combate armado, táticas de sobrevivência física severa e adaptação em zonas de guerra.</li>
+                            <li><strong>Condutor:</strong> Especialistas em lidar com maquinários antigos, engenharia reversa de relíquias e condução controlada de Fluxos em motores.</li>
+                            <li><strong>Ritualista:</strong> Estudiosos focados em rituais complexos, misticismo e na manipulação e dobramento direto da energia dos Fluxos.</li>
+                            <li><strong>Arauto:</strong> Indivíduos cujos caminhos foram marcados por laços indissolúveis com forças superiores, entidades dormentes ou fenômenos transcendentais.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>3. Mecânica dos Fluxos</span>
+                    <span class="indicator">[+]</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="accordion-inner">
+                        <p>Os Fluxos são as fundações sobrenaturais e físicas invisíveis que sustentam toda a realidade conhecida do mundo pós-colapso. Toda criatura viva, objeto ou anomalia climática possui conexão intrínseca com ao menos uma dessas forças.</p>
+                        
+                        <div class="manual-box flux-style">
+                            <span class="box-title">Diretriz Mística Fundamental</span>
+                            <p>Os Fluxos NÃO funcionam como escolas tradicionais de magia. Eles operam como aspectos brutais e indomáveis da própria existência, manifestados em sete canais conhecidos:</p>
+                        </div>
+
+                        <ul>
+                            <li><strong>Carne:</strong> O aspecto biológico, a matéria orgânica, a mutação e a integridade da forma viva.</li>
+                            <li><strong>Cognição:</strong> O pensamento puro, o processamento lógico, a ilusão e a expansão psíquica.</li>
+                            <li><strong>Alma:</strong> A essência imaterial, a energia espiritual remanescente e a força vital incorpórea.</li>
+                            <li><strong>Corrente:</strong> O movimento constante, a eletricidade, o magnetismo e os elos que ligam as engrenagens.</li>
+                            <li><strong>Trono:</strong> A autoridade, o comando, a gravidade, a imposição de vontade e as estruturas de ordem.</li>
+                            <li><strong>Corrupção:</strong> A alteração caótica, a degradação da matéria, o descontrole e as anomalias selvagens.</li>
+                            <li><strong>Morte:</strong> O fim natural ou violento, a inércia, o silêncio absoluto e o encerramento do ciclo do Fluxo.</li>
+                        </ul>
+
+                        <p>Essas forças alimentam diretamente o funcionamento de relíquias recuperadas, a execução de rituais e as tecnologias movidas a vapor oculto. Compreendê-los concede poderes incompreensíveis; no entanto, aproximar-se ou canalizar em excesso essas energias sem o preparo adequado cobra um pedágio severo, induzindo o indivíduo a perder gradualmente sua própria humanidade.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>4. Combate e Sobrevivência</span>
+                    <span class="indicator">[+]</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="accordion-inner">
+                        <h5>Iniciativa Narrativa</h5>
+                        <p>Gears Of Desert descarta completamente o uso de ordens rígidas de turnos artificiais. O sistema adota a iniciativa narrativa: age primeiro o personagem ou ameaça que fizer mais sentido dramático e físico dentro do contexto imediato da cena descrita.</p>
+                        <p>Quando duas ações hostis colidirem diretamente no espaço de tempo, realiza-se um teste resistido: <strong>D20 + Atributo Relevante</strong>. Quem obtiver o maior valor consolidado ganha a prioridade de agir, e o mesmo resultado numérico já pode ser aproveitado pelo Mestre para computar o sucesso da ação em si.</p>
+
+                        <h5>Métricas de Status Vital</h5>
+                        <p>O estado físico e mental dos sobreviventes é monitorado através de quatro medidores dinâmicos:</p>
+                        <ul>
+                            <li><strong>HP (Pontos de Vida):</strong> Representa a integridade anatômica e ferimentos reais graves. <em>Valor Inicial Padrão: 20</em>. Caso o medidor seja reduzido a 0, o personagem cai imediatamente em Estado Crítico ou morre.</li>
+                            <li><strong>Defesa:</strong> Medidor de resistência superficial momentânea. Absorve impactos cinéticos leves, arranhões de detritos, cortes superficiais e estresses menores. <em>Valor Inicial Padrão: 20</em>.</li>
+                            <li><strong>Armadura:</strong> A proteção balística ou de placas físicas equipada no corpo. Ela reduz diretamente o valor de dano que seria infligido diretamente contra os Pontos de Vida (HP). Possui durabilidade limitada.</li>
+                            <li><strong>Insanidade:</strong> Uma escala flutuante mensurada de 0 a 100. Registra a proximidade da mente com o limiar de corrupção dos Fluxos e o horror existencial do deserto. Uma baixa taxa garante estabilidade social, enquanto taxas elevadas amplificam a percepção sobrenatural, mas aumentam drasticamente os riscos de colapso mental.</li>
+                        </ul>
+
+                        <h5>Mecânica de Armaduras e Desgaste</h5>
+                        <p>As armaduras equipadas não concedem bônus numéricos para o status de Defesa; sua única função é absorver o dano que iria para o HP. Toda peça protetora possui um valor de Proteção e uma métrica de Resistência.</p>
+                        <p>A resistência da armadura diminui progressivamente conforme ela bloqueia ataques violentos. Quando a resistência atinge o valor zero:</p>
+                        <ul>
+                            <li>Armaduras comuns partem-se e tornam-se lixo inutilizável.</li>
+                            <li>Armaduras baseadas em relíquias antigas não quebram, mas entram imediatamente em Estado de Ruína.</li>
+                        </ul>
+
+                        <h5>Inventário e Distribuição de Carga</h5>
+                        <p>O gerenciamento de carga é vital para a exploração de longo prazo, sendo dividido estritamente em três categorias operacionais:</p>
+                        <ol>
+                            <li><strong>Hotbar:</strong> Compartimentos de saque imediato. Armas empunhadas, ferramentas ativas ou relíquias prontas para canalização instantânea.</li>
+                            <li><strong>Acesso Rápido:</strong> Bolsos e bandoleiras fáceis de acessar durante rodadas de tensão (Munição, injetores médicos, ferramentas menores).</li>
+                            <li><strong>Guardados:</strong> Mochilas cargueiras, caixotes ou baús de transporte. Itens guardados aqui requerem tempo livre para serem retirados e não podem ser sacados durante o combate.</li>
+                        </ol>
+
+                        <div class="manual-box">
+                            <span class="box-title">Cálculo de Capacidade de Carga</span>
+                            <p>Capacidade de Carga Máxima = 30 kg + (Atributo Corpo × 5 kg)</p>
+                            <p style="font-size: 0.8rem; margin-top: 5px; color: #6A6D71;">Exemplo: Um personagem com Corpo 12 possui suporte para carregar até 90 kg sem sofrer penalidades de fadiga ou lentidão de deslocamento.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>5. Relíquias</span>
+                    <span class="indicator">[+]</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="accordion-inner">
+                        <p>As relíquias são remanescentes tecnológicos ou artefactos inexplicáveis criados por civilizações caídas que possuem a capacidade latente de armazenar, estabilizar ou distorcer os Fluxos da realidade. Elas funcionam como o principal vetor para manifestações sobrenaturais no cenário de Gears Of Desert.</p>
+                        <p>Esses objetos permitem que indivíduos comuns manipulem energias invisíveis que estariam muito além da cognição humana regular. Contudo, a operação desses dispositivos impõe riscos permanentes aos usuários.</p>
+                        
+                        <div class="manual-box">
+                            <span class="box-title">Aviso de Ruína Anômala</span>
+                            <p>Exceder as capacidades operacionais de uma relíquia, falhar em rituais de calibração ou utilizá-la sob desgaste extremo aciona o Estado de Ruína do item, gerando fluxos instáveis, mutações biológicas severas na carne do portador e anomalias espaciais localizadas.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    <span>6. Progressão</span>
+                    <span class="indicator">[+]</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="accordion-inner">
+                        <p>A evolução dos sobreviventes é amarrada à experiência factual de sobrevivência, descobertas arqueológicas de valor e superação de riscos em zonas classificadas pelo GEA.</p>
+                        <p>Ao encerramento de cada sessão ativa de campanha, o Mestre pode outorgar aos participantes uma pontuação base para desenvolvimento:</p>
+                        <ul>
+                            <li><strong>0 Pontos:</strong> Sobrevivência estagnada, sem grandes feitos ou avanços significativos.</li>
+                            <li><strong>1 Ponto:</strong> Desempenho padrão, resolução de problemas comuns e exploração bem-sucedida.</li>
+                            <li><strong>2 Pontos:</strong> Feitos extraordinários, superação de cenários GEA letais ou descobertas históricas cruciais.</li>
+                        </ul>
+                        <p>Esses pontos acumulados são aplicados para aumentar diretamente os Atributos de escolha do jogador. Visando manter a coesão técnica do manual, o sistema dita a seguinte regra de progressão:</p>
+                        
+                        <div class="manual-box">
+                            <span class="box-title">Protocolo de Evolução Técnica</span>
+                            <p>Sempre que um Atributo receber um incremento de +1 ponto, o personagem adquire obrigatoriamente <strong>+2 pontos de perícia</strong> para distribuir livremente entre suas especializações, respeitando o limite máximo estrutural de nível 6 por perícia.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <footer>
+        SYS_VER: 0.1 // GEARS OF DESERT RPG // MANUAL DE INSTRUÇÕES CORE // FOSCO TERMINAL
+    </footer>
+
+    <script>
+        // Função de controle de abertura/fechamento da Sidebar Lateral
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        // Lógica de sanfona (Accordion) suave com alteração do indicador [+] e [-]
+        function toggleAccordion(element) {
+            const item = element.parentElement;
+            const content = element.nextElementSibling;
+            const indicator = element.querySelector('.indicator');
+            
+            // Alterna o estado ativo do item clicado
+            item.classList.toggle('active');
+            
+            if (item.classList.contains('active')) {
+                content.style.maxHeight = content.scrollHeight + "px";
+                indicator.textContent = "[-]";
+            } else {
+                content.style.maxHeight = "0px";
+                indicator.textContent = "[+]";
+            }
+        }
+    </script>
+</body>
+</html>
