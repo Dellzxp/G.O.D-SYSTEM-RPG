@@ -994,6 +994,83 @@
             box.innerHTML = camp.logs.map(l => `<div class="log-entry">${l}</div>`).join("");
             box.scrollTop = box.scrollHeight;
         }
-    </script>
+    </script> <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+
+        // Suas chaves oficiais do Gears of Desert injetadas aqui:
+        const firebaseConfig = {
+            apiKey: "AIzaSyC9a9k39aToZcZ5_zwWqNM_4vFXELoYoTI",
+            authDomain: "gears-of-desert.firebaseapp.com",
+            projectId: "gears-of-desert",
+            storageBucket: "gears-of-desert.firebasestorage.app",
+            messagingSenderId: "860761444217",
+            appId: "1:860761444217:web:62107c127835d8583aa9a8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Pega o ID do usuário que logou lá na tela de login
+        const USUARIO_ID = sessionStorage.getItem('usuario_id');
+        const USUARIO_NOME = sessionStorage.getItem('usuario_nome');
+
+        // Segurança: Se tentou entrar sem logar, ejeta para o Terminal
+        if (!USUARIO_ID) {
+            alert("SINAL INEXISTENTE: Autentique-se no terminal principal primeiro.");
+            window.location.href = 'login.html';
+        }
+
+        // --- FUNÇÃO 1: CRIAR UMA CAMPANHA NOVA (Para o Mestre) ---
+        window.criarNovaCampanhaNoBanco = async function(codigoCampanha, nomeCampanha) {
+            try {
+                const docRef = doc(db, "campanhas", codigoCampanha);
+                
+                const dadosCampanha = {
+                    nome: nomeCampanha,
+                    mestreId: USUARIO_ID,
+                    mestreNome: USUARIO_NOME,
+                    jogadores: [], 
+                    criadoEm: new Date().toISOString()
+                };
+
+                await setDoc(docRef, dadosCampanha);
+                console.log(`Campanha ${codigoCampanha} transmitida com sucesso para a rede.`);
+                alert(`Campanha criada! Código de transmissão: ${codigoCampanha}`);
+            } catch (error) {
+                console.error("Erro ao transmitir sinal de campanha: ", error);
+            }
+        };
+
+        // --- FUNÇÃO 2: ENTRAR EM UMA CAMPANHA EXISTENTE (Para o Jogador) ---
+        window.entrarNaCampanhaPeloCodigo = async function(codigoCampanha) {
+            try {
+                const docRef = doc(db, "campanhas", codigoCampanha);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    // Se a campanha existe, adiciona o ID do jogador na lista de membros dela
+                    await updateDoc(docRef, {
+                        jogadores: arrayUnion({
+                            id: USUARIO_ID,
+                            nome: USUARIO_NOME
+                        })
+                    });
+                    
+                    alert(`Sinal sintonizado! Você entrou na campanha: ${docSnap.data().nome}`);
+                    // Salva o código da campanha atual na sessão do navegador
+                    sessionStorage.setItem('campanha_atual', codigoCampanha);
+                    
+                    // Recarrega a página ou roda sua função para desenhar a mesa na tela
+                    if (typeof inicializarMesaDoJogo === "function") inicializarMesaDoJogo();
+                    
+                } else {
+                    alert("FALHA DE CONEXÃO: Código de campanha inexistente no deserto.");
+                }
+            } catch (error) {
+                console.error("Erro ao sintonizar na campanha: ", error);
+            }
+        };
+    </script>  
 </body>
 </html>
