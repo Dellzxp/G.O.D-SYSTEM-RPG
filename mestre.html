@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gears of Desert - Nexus de Campanhas</title>
+    <style>
+        /* ==========================================================================
+           1. FUNDAÇÕES VISUAIS: TERMINAL INDUSTRIAL C.R.I.S.
+           ========================================================================== */
+        :root {
+            --bg-color: #121314;
+            --panel-bg: #161718;
+            --text-base: #DCA874;
+            --text-muted: #6A6D71;
+            --flux-purple: #5A4470;
+            --mech-rust: #A35A38;
+            --alert-red: #BD4E2E;
+            --success-green: #8c9675;
+            --border-color: #2d2e30;
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+            border-radius: 0 !important;
+        }
+
+        body {
+            background-color: var(--bg-color); color: var(--text-base);
+            min-height: 100vh; display: flex; flex-direction: column;
+            overflow-x: hidden; position: relative;
+        }
+
+        /* Scanlines */
+        .scanlines {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 9999; opacity: 0.04; pointer-events: none;
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, #000 2px, #000 4px);
+        }
+
+        /* Animações Ambientais */
+        @keyframes pulse-critical {
+            0% { box-shadow: inset 0 0 10px var(--mech-rust); border-color: var(--mech-rust); }
+            100% { box-shadow: inset 0 0 20px rgba(163, 90, 56, 0.5); border-color: var(--alert-red); }
+        }
+
+        @keyframes pulse-calamity {
+            0% { box-shadow: inset 0 0 15px var(--alert-red); border-color: var(--alert-red); background-color: rgba(189, 78, 46, 0.05); }
+            100% { box-shadow: inset 0 0 40px rgba(189, 78, 46, 0.8); border-color: #ff3333; background-color: rgba(189, 78, 46, 0.1); }
+        }
+
+        .env-critical { animation: pulse-critical 1.5s infinite alternate !important; }
+        .env-calamity { animation: pulse-calamity 0.8s infinite alternate !important; }
+
+        /* ==========================================================================
+           2. COMPONENTES DE UI & HEADER
+           ========================================================================== */
+        header {
+            background-color: var(--panel-bg); border-bottom: 2px solid var(--mech-rust);
+            padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 100;
+        }
+
+        .header-brand { display: flex; align-items: center; gap: 15px; }
+        .hamburger-btn { background: none; border: 1px solid var(--text-base); color: var(--text-base); padding: 4px 10px; cursor: pointer; font-size: 16px; }
+        .hamburger-btn:hover { background-color: var(--text-base); color: var(--bg-color); }
+        header h1 { font-size: 1rem; color: #fff; letter-spacing: 1px; }
+
+        .user-badge { font-size: 0.8rem; border: 1px dashed var(--success-green); padding: 4px 10px; color: var(--success-green); }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed; top: 0; left: 0; width: 280px; height: 100%;
+            background-color: var(--bg-color); border-right: 2px solid var(--flux-purple);
+            z-index: 200; transform: translateX(-100%); transition: transform 0.3s ease;
+            padding: 20px; display: flex; flex-direction: column; gap: 20px;
+        }
+        .sidebar.open { transform: translateX(0); }
+        .sidebar-close { background: none; border: 1px solid var(--flux-purple); color: var(--flux-purple); padding: 5px; cursor: pointer; }
+        .sidebar-close:hover { background-color: var(--flux-purple); color: #fff; }
+        .sidebar-nav { display: flex; flex-direction: column; gap: 10px; }
+        .sidebar-nav a { color: var(--text-base); text-decoration: none; padding: 10px; background-color: var(--panel-bg); border-left: 3px solid var(--mech-rust); font-size: 0.85rem; }
+        .sidebar-nav a:hover, .sidebar-nav a.active { border-left-color: var(--alert-red); color: #fff; background-color: rgba(220,168,116,0.1); }
+        .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 150; display: none; }
+        .sidebar-overlay.active { display: block; }
+
+        /* Terminais e Paineis */
+        main { margin-top: 60px; flex: 1; padding: 20px; display: flex; flex-direction: column; }
+        .view-section { display: none; width: 100%; max-width: 1400px; margin: 0 auto; flex-direction: column; gap: 20px; }
+        .view-section.active { display: flex; }
+        
+        .terminal-panel { background-color: var(--panel-bg); border: 1px solid var(--border-color); padding: 20px; }
+        .panel-title { font-size: 0.9rem; color: #fff; text-transform: uppercase; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
+        .panel-title::before { content: "■ "; color: var(--mech-rust); margin-right: 8px; }
+
+        /* Controles de Formulário */
+        .btn { background-color: var(--bg-color); border: 1px solid var(--text-base); color: var(--text-base); padding: 8px 16px; cursor: pointer; font-size: 0.8rem; text-transform: uppercase; font-weight: bold; }
+        .btn:hover { background-color: var(--text-base); color: var(--bg-color); }
+        .btn-success { border-color: var(--success-green); color: var(--success-green); }
+        .btn-success:hover { background-color: var(--success-green); color: var(--bg-color); }
+        .btn-danger { border-color: var(--alert-red); color: var(--alert-red); }
+        .btn-danger:hover { background-color: var(--alert-red); color: #fff; }
+        .btn-flux { border-color: var(--flux-purple); color: var(--flux-purple); }
+        .btn-flux:hover { background-color: var(--flux-purple); color: #fff; }
+
+        input, select, textarea { background-color: var(--bg-color); border: 1px solid var(--text-base); color: var(--text-base); padding: 8px; font-size: 0.85rem; outline: none; width: 100%; }
+        input:focus, select:focus, textarea:focus { border-color: #fff; }
+
+        .stepper { display: flex; border: 1px solid var(--border-color); width: fit-content; }
+        .stepper button { background: var(--panel-bg); border: none; color: var(--text-base); width: 25px; cursor: pointer; font-weight: bold; }
+        .stepper button:hover { background: var(--mech-rust); color: #fff; }
+        .stepper input { border: none; width: 40px; text-align: center; font-weight: bold; color: #fff; }
+
+        /* ==========================================================================
+           3. TELA 1: LOBBY
+           ========================================================================== */
+        .lobby-controls { display: flex; gap: 15px; margin-bottom: 20px; }
+        .modal-form { display: none; flex-direction: column; gap: 10px; background-color: var(--bg-color); border: 1px solid var(--mech-rust); padding: 15px; margin-bottom: 20px; max-width: 600px; }
+        .campaign-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
+        .campaign-card { border: 1px solid var(--border-color); padding: 15px; background-color: var(--bg-color); display: flex; flex-direction: column; justify-content: space-between; }
+        .campaign-card-header { display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 5px; margin-bottom: 10px; }
+        .role-badge { font-size: 0.7rem; padding: 2px 6px; font-weight: bold; }
+        .role-mestre { border: 1px solid var(--mech-rust); color: var(--mech-rust); }
+        .role-jogador { border: 1px solid var(--flux-purple); color: var(--flux-purple); }
+
+        /* ==========================================================================
+           4. DASHBOARDS
+           ========================================================================== */
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-color); padding: 15px; border: 1px solid var(--border-color); }
+        .db-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+        @media (max-width: 1024px) { .db-grid { grid-template-columns: 1fr; } }
+
+        /* Master Tabs */
+        .master-tabs { display: flex; gap: 5px; border-bottom: 2px solid var(--border-color); margin-bottom: 15px; overflow-x: auto; }
+        .tab-btn { background: var(--bg-color); border: 1px solid var(--border-color); border-bottom: none; color: var(--text-muted); padding: 8px 15px; cursor: pointer; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
+        .tab-btn.active { background: var(--panel-bg); color: var(--mech-rust); border-color: var(--mech-rust); border-top: 2px solid var(--mech-rust); }
+        .tab-content { display: none; flex-direction: column; gap: 20px; }
+        .tab-content.active { display: flex; }
+
+        /* Environment Controls */
+        .env-controls { display: flex; gap: 20px; flex-wrap: wrap; background: var(--bg-color); padding: 10px; border: 1px solid var(--border-color); }
+        .radio-group { display: flex; gap: 10px; align-items: center; }
+        .radio-group label { font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+
+        /* Master Entities Grids (Players, Bestiary, Arsenal) */
+        .entities-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 15px; }
+        .entity-card { border: 1px solid var(--border-color); padding: 12px; background-color: var(--bg-color); position: relative; }
+        .entity-card-header { font-weight: bold; color: #fff; border-bottom: 1px dashed var(--border-color); padding-bottom: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .vital-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 0.8rem; }
+        
+        .add-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: var(--bg-color); padding: 15px; border: 1px solid var(--border-color); margin-bottom: 15px; }
+        .add-form.full { grid-template-columns: 1fr; }
+
+        /* Initiative */
+        .init-tracker { display: flex; flex-direction: column; gap: 5px; max-height: 300px; overflow-y: auto; }
+        .init-row { display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-color); padding: 8px; border-bottom: 1px solid rgba(45,46,48,0.5); }
+        .init-row.active-turn { border-left: 3px solid var(--success-green); background-color: rgba(140, 150, 117, 0.1); }
+
+        /* Console Log */
+        .dice-tray { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+        .console-log { background-color: #000; border: 1px solid var(--border-color); height: 250px; overflow-y: auto; padding: 10px; font-size: 0.75rem; color: var(--success-green); display: flex; flex-direction: column; gap: 5px; }
+        .log-entry { border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 3px; line-height: 1.4; }
+        .log-crit { color: var(--alert-red); font-weight: bold; animation: pulse-critical 1s infinite alternate; }
+        .log-timestamp { color: var(--text-muted); margin-right: 5px; }
+
+        /* Player HUD */
+        .player-vitals-box { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .vital-stat { background: var(--bg-color); border: 1px solid var(--border-color); padding: 15px; text-align: center; }
+        .vital-stat label { display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 5px; }
+        .vital-stat span { font-size: 1.5rem; font-weight: bold; color: #fff; }
+
+        footer { background-color: var(--panel-bg); border-top: 1px solid var(--border-color); padding: 15px; text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: auto; }
+    </style>
+</head>
+<body>
+    <div class="scanlines"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <header>
+        <div class="header-brand">
+            <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
+            <h1>GEARS OF DESERT // NEXUS DE CONEXÃO v2.0</h1>
+        </div>
+        <div class="user-badge" id="globalUserBadge">USUÁRIO: DESCONECTADO</div>
+    </header>
+
+    <div class="sidebar" id="sidebar">
+        <button class="sidebar-close" onclick="toggleSidebar()">✕ FECHAR</button>
+        <nav class="sidebar-nav">
+            <a href="index.html">🏠 Início</a>
+            <a href="regras.html">📖 Regras</a>
+            <a href="wiki.html">🔍 Wiki</a>
+            <a href="fichas.html">👤 Fichas</a>
+            <a href="campanhas.html" class="active">🌋 Nexus de Campanhas</a>
+        </nav>
+    </div>
+
+    <main>
+        <section id="view-lobby" class="view-section active">
+            <div class="terminal-panel">
+                <div class="panel-title"><span>SISTEMA DE AUTENTICAÇÃO E LOBBY</span></div>
+                
+                <div id="auth-panel" style="margin-bottom: 20px; display: flex; gap: 10px;">
+                    <input type="text" id="auth_username" placeholder="[Nome do Usuário Atual]" style="max-width: 300px;">
+                    <button class="btn btn-success" onclick="authenticateUser()">Autenticar Registro</button>
+                </div>
+
+                <div id="lobby-content" style="display: none;">
+                    <div class="lobby-controls">
+                        <button class="btn btn-success" onclick="toggleModal('modal-create')">[ FUNDAR NOVA CAMPANHA ]</button>
+                        <button class="btn btn-flux" onclick="toggleModal('modal-join')">[ SINCRONIZAR SINAL ]</button>
+                    </div>
+
+                    <div id="modal-create" class="modal-form">
+                        <label>Designação da Instância (Nome da Campanha):</label>
+                        <input type="text" id="create_camp_name" placeholder="[Campanha em Branco]">
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button class="btn btn-success" onclick="createCampaign()">Fundar</button>
+                            <button class="btn btn-danger" onclick="toggleModal('modal-create')">Cancelar</button>
+                        </div>
+                    </div>
+
+                    <div id="modal-join" class="modal-form">
+                        <label>Código de Autenticação [ID de Conexão]:</label>
+                        <input type="text" id="join_camp_id" placeholder="[ID de Conexão]">
+                        <label style="margin-top: 10px;">Selecione o Operador (Sua Ficha Local):</label>
+                        <select id="join_character_select">
+                            <option value="">[Carregando Fichas...]</option>
+                        </select>
+                        <span id="join_warning" style="font-size: 0.75rem; color: var(--alert-red); display: none;">Nenhuma ficha detectada no banco de dados local. Crie em "Registro de Fichas".</span>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button class="btn btn-flux" id="btn_sync_join" onclick="joinCampaign()">Sincronizar</button>
+                            <button class="btn btn-danger" onclick="toggleModal('modal-join')">Cancelar</button>
+                        </div>
+                    </div>
+
+                    <div class="panel-title" style="margin-top: 30px;"><span>Mesas Ativas Vinculadas</span></div>
+                    <div class="campaign-grid" id="lobby_grid">
+                        </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-master" class="view-section">
+            <div class="dashboard-header" id="master_env_header">
+                <div>
+                    <h2 id="master_camp_name" style="color: #fff; font-size: 1.2rem;">[Nome da Campanha]</h2>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">[ID de Conexão]: <strong style="color: var(--text-base); cursor: pointer;" id="master_camp_id" onclick="copyId()" title="Clique para copiar">---</strong></span>
+                </div>
+                <button class="btn btn-danger" onclick="leaveDashboard()">Desconectar (Sair)</button>
+            </div>
+
+            <div class="db-grid">
+                <div class="terminal-panel" id="master_main_panel" style="padding: 0; background: transparent; border: none;">
+                    
+                    <div class="master-tabs">
+                        <button class="tab-btn active" onclick="switchMasterTab('tab_mesa', this)">Visão da Mesa</button>
+                        <button class="tab-btn" onclick="switchMasterTab('tab_bestiario', this)">Bestiário & NPCs</button>
+                        <button class="tab-btn" onclick="switchMasterTab('tab_arsenal', this)">Arsenal & Relíquias</button>
+                        <button class="tab-btn" onclick="switchMasterTab('tab_arquivos', this)">Arquivos Secretos</button>
+                    </div>
+
+                    <div id="tab_mesa" class="tab-content active terminal-panel">
+                        <div class="panel-title"><span>Controle de Realidade Absoluta</span></div>
+                        <div class="env-controls">
+                            <div>
+                                <label style="display:block; margin-bottom:5px; font-size:0.8rem;">GEA (Escala Universal de Ameaça):</label>
+                                <div class="radio-group" id="master_gea_radios">
+                                    <label><input type="radio" name="gea" value="0" onchange="updateMasterEnv()"> 0</label>
+                                    <label><input type="radio" name="gea" value="1" onchange="updateMasterEnv()"> 1</label>
+                                    <label><input type="radio" name="gea" value="2" onchange="updateMasterEnv()"> 2</label>
+                                    <label><input type="radio" name="gea" value="3" onchange="updateMasterEnv()"> 3</label>
+                                    <label><input type="radio" name="gea" value="4" onchange="updateMasterEnv()"> 4</label>
+                                    <label><input type="radio" name="gea" value="5" onchange="updateMasterEnv()"> 5</label>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display:block; margin-bottom:5px; font-size:0.8rem;">Instabilidade dos Fluxos:</label>
+                                <select id="master_flux_status" onchange="updateMasterEnv()">
+                                    <option value="Estável">Estável</option>
+                                    <option value="Instável">Instável</option>
+                                    <option value="Crítico">Crítico</option>
+                                    <option value="Calamidade">Calamidade</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="panel-title" style="margin-top: 20px;"><span>Gears Conectados (Jogadores)</span></div>
+                        <div class="entities-grid" id="master_players_grid">
+                            </div>
+                    </div>
+
+                    <div id="tab_bestiario" class="tab-content terminal-panel">
+                        <div class="panel-title"><span>Catálogo de Ameaças e Entidades</span></div>
+                        <div class="add-form">
+                            <div>
+                                <label style="font-size:0.7rem;">Designação (Nome)</label>
+                                <input type="text" id="bestiary_name" placeholder="Ex: Verme do Deserto">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem;">Categoria</label>
+                                <select id="bestiary_type">
+                                    <option value="Monstro">Monstro/Anomalia</option>
+                                    <option value="NPC">NPC Sapiens</option>
+                                </select>
+                            </div>
+                            <div style="display:flex; gap:10px;">
+                                <div style="flex:1;"><label style="font-size:0.7rem;">HP Max</label><input type="number" id="bestiary_hp" value="30"></div>
+                                <div style="flex:1;"><label style="font-size:0.7rem;">Defesa</label><input type="number" id="bestiary_def" value="10"></div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem;">Notas de Combate/Lore</label>
+                                <input type="text" id="bestiary_notes" placeholder="Ataque ácido, Resistente a Carne...">
+                            </div>
+                            <button class="btn btn-success" style="grid-column: 1 / -1;" onclick="addBestiaryEntry()">Registrar no Bestiário</button>
+                        </div>
+                        <div class="entities-grid" id="master_bestiary_grid">
+                            </div>
+                    </div>
+
+                    <div id="tab_arsenal" class="tab-content terminal-panel">
+                        <div class="panel-title"><span>Cofre de Sucata e Relíquias da Campanha</span></div>
+                        <div class="add-form">
+                            <div>
+                                <label style="font-size:0.7rem;">Nome do Item/Relíquia</label>
+                                <input type="text" id="arsenal_name" placeholder="[Nome da Relíquia]">
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem;">Tipo</label>
+                                <select id="arsenal_type">
+                                    <option value="Arma">Armamento Físico</option>
+                                    <option value="Relíquia">Relíquia de Fluxo</option>
+                                    <option value="Consumível">Consumível/Sucata</option>
+                                </select>
+                            </div>
+                            <div style="grid-column: 1 / -1;">
+                                <label style="font-size:0.7rem;">Efeitos e Ruína</label>
+                                <input type="text" id="arsenal_notes" placeholder="Dano massivo, gera 10 de insanidade ao uso...">
+                            </div>
+                            <button class="btn btn-success" style="grid-column: 1 / -1;" onclick="addArsenalEntry()">Armazenar Item</button>
+                        </div>
+                        <div class="entities-grid" id="master_arsenal_grid">
+                            </div>
+                    </div>
+
+                    <div id="tab_arquivos" class="tab-content terminal-panel">
+                        <div class="panel-title"><span>Registros Textuais Absolutos (Privado)</span></div>
+                        <label style="font-size:0.8rem; color:var(--text-muted);">Lore Local e Geopolítica do Deserto</label>
+                        <textarea id="master_lore_notes" style="height: 120px;" oninput="saveTextAreas()"></textarea>
+                        
+                        <label style="font-size:0.8rem; color:var(--text-muted); margin-top:10px;">Movimentação de Facções (Gears, Cultos, etc)</label>
+                        <textarea id="master_faction_notes" style="height: 120px;" oninput="saveTextAreas()"></textarea>
+
+                        <label style="font-size:0.8rem; color:var(--text-muted); margin-top:10px;">Rascunhos e Segredos Gerais</label>
+                        <textarea id="master_secret_notes" style="height: 150px;" oninput="saveTextAreas()"></textarea>
+                    </div>
+
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="terminal-panel">
+                        <div class="panel-title"><span>Rastreador de Iniciativa</span></div>
+                        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                            <input type="text" id="init_name" placeholder="[Entidade]">
+                            <input type="number" id="init_val" placeholder="Valor" style="width: 70px;">
+                            <button class="btn btn-success" onclick="addInitiative()">+</button>
+                        </div>
+                        <div class="init-tracker" id="master_init_list"></div>
+                        <button class="btn" style="width: 100%; margin-top: 10px;" onclick="nextTurn()">Avançar Turno >></button>
+                    </div>
+
+                    <div class="terminal-panel">
+                        <div class="panel-title"><span>Console Global de Transmissão</span></div>
+                        <div class="dice-tray">
+                            <button class="btn" onclick="rollDiceGlobal(4)">d4</button>
+                            <button class="btn" onclick="rollDiceGlobal(6)">d6</button>
+                            <button class="btn" onclick="rollDiceGlobal(8)">d8</button>
+                            <button class="btn" onclick="rollDiceGlobal(10)">d10</button>
+                            <button class="btn" onclick="rollDiceGlobal(12)">d12</button>
+                            <button class="btn btn-success" onclick="rollDiceGlobal(20)">d20</button>
+                            <button class="btn" onclick="rollDiceGlobal(100)">d100</button>
+                        </div>
+                        <div class="console-log" id="master_log_box"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-player" class="view-section">
+            <div class="dashboard-header" id="player_env_header">
+                <div>
+                    <h2 id="player_camp_name" style="color: #fff; font-size: 1.2rem;">[Nome]</h2>
+                    <div style="font-size: 0.8rem; margin-top: 5px;">
+                        <span style="margin-right: 15px;">GEA Atual: <strong id="player_gea_val" style="color: #fff;">0</strong></span>
+                        <span>Fluxos: <strong id="player_flux_val" style="color: #fff;">Estável</strong></span>
+                    </div>
+                </div>
+                <button class="btn btn-danger" onclick="leaveDashboard()">Desconectar</button>
+            </div>
+
+            <div class="db-grid">
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="terminal-panel">
+                        <div class="panel-title"><span>Monitor Vital do Operador</span></div>
+                        <a href="fichas.html" target="_blank" class="btn btn-success" style="display: block; text-align: center; text-decoration: none; margin-bottom: 15px;">[ ABRIR FICHA COMPLETA ]</a>
+                        
+                        <div class="player-vitals-box" id="player_vitals_display">
+                            </div>
+                        <p style="font-size: 0.7rem; color: var(--text-muted); text-align: center;">As alterações refletem na central do Mestre e na sua Ficha Local.</p>
+                    </div>
+
+                    <div class="terminal-panel">
+                        <div class="panel-title"><span>Radar de Combate (Iniciativa)</span></div>
+                        <div class="init-tracker" id="player_init_list"></div>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="terminal-panel">
+                        <div class="panel-title"><span>Transmissão Tática</span></div>
+                        <div class="dice-tray">
+                            <button class="btn" onclick="rollDiceGlobal(4)">d4</button>
+                            <button class="btn" onclick="rollDiceGlobal(6)">d6</button>
+                            <button class="btn" onclick="rollDiceGlobal(8)">d8</button>
+                            <button class="btn" onclick="rollDiceGlobal(10)">d10</button>
+                            <button class="btn" onclick="rollDiceGlobal(12)">d12</button>
+                            <button class="btn btn-flux" onclick="rollDiceGlobal(20)">d20</button>
+                            <button class="btn" onclick="rollDiceGlobal(100)">d100</button>
+                        </div>
+                        <div class="console-log" id="player_log_box"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>GEARS OF DESERT // NEXUS DE MESA VIRTUAL RELACIONAL // SINCRONIZAÇÃO LOCALSTORAGE</footer>
+
+    <script>
+        // Estrutura de BD
+        let db = { currentUser: "", campaigns: [] };
+        let activeCampaignId = null;
+        let syncInterval = null;
+
+        // Ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            const rawDB = localStorage.getItem('gears_desert_nexus');
+            if (rawDB) db = JSON.parse(rawDB);
+
+            if (db.currentUser) {
+                document.getElementById('auth-panel').style.display = 'none';
+                document.getElementById('lobby-content').style.display = 'block';
+                document.getElementById('globalUserBadge').textContent = `GEAR CONECTADO: ${db.currentUser}`;
+                renderLobbyGrid();
+            }
+        });
+
+        function saveDB() { localStorage.setItem('gears_desert_nexus', JSON.stringify(db)); }
+
+        // Utilitários de UI
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        function toggleModal(id) {
+            const el = document.getElementById(id);
+            if (el.style.display === 'flex') {
+                el.style.display = 'none';
+            } else {
+                el.style.display = 'flex';
+                if(id === 'modal-join') loadCharactersForJoin();
+            }
+        }
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+        }
+
+        function switchMasterTab(tabId, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        // ==========================================================================
+        // AUTENTICAÇÃO E LOBBY
+        // ==========================================================================
+        function authenticateUser() {
+            const name = document.getElementById('auth_username').value.trim();
+            if (!name) return;
+            db.currentUser = name;
+            saveDB();
+            location.reload();
+        }
+
+        function generateHash() { return 'GEAR-' + Math.random().toString(36).substr(2, 6).toUpperCase(); }
+
+        function renderLobbyGrid() {
+            const grid = document.getElementById('lobby_grid');
+            grid.innerHTML = "";
+            const myCampaigns = db.campaigns.filter(c => c.master === db.currentUser || c.players.some(p => p.owner === db.currentUser));
+
+            if (myCampaigns.length === 0) {
+                grid.innerHTML = "<span style='color: var(--text-muted); font-size: 0.8rem;'>[ NENHUMA CONEXÃO ESTABELECIDA NO NEXUS. ]</span>";
+                return;
+            }
+
+            myCampaigns.forEach(camp => {
+                const isMaster = camp.master === db.currentUser;
+                const roleText = isMaster ? "Mestre" : "Jogador";
+                const roleClass = isMaster ? "role-mestre" : "role-jogador";
+
+                const card = document.createElement('div');
+                card.className = "campaign-card";
+                card.innerHTML = `
+                    <div class="campaign-card-header">
+                        <strong style="color: #fff;">${camp.name}</strong>
+                        <span class="role-badge ${roleClass}">${roleText}</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">[ID de Conexão]: <span style="color:var(--text-base);">${camp.id}</span></div>
+                    <button class="btn" style="width:100%" onclick="enterCampaign('${camp.id}')">Acessar Painel</button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function createCampaign() {
+            const name = document.getElementById('create_camp_name').value.trim();
+            if (!name) return alert("Erro: Defina a Designação da Campanha.");
+
+            const newCamp = {
+                id: generateHash(),
+                name: name,
+                master: db.currentUser,
+                geaLevel: 0,
+                instabilityStatus: "Estável",
+                logs: [`[SISTEMA] Conexão Matriz estabelecida. Campanha fundada por ${db.currentUser}.`],
+                combatTracker: { activeIndex: -1, entities: [] },
+                players: [],
+                masterNotes: "", loreNotes: "", factionNotes: "",
+                bestiary: [], armory: []
+            };
+
+            db.campaigns.push(newCamp);
+            saveDB();
+            toggleModal('modal-create');
+            renderLobbyGrid();
+            alert(`Sinal Fundado! O ID de conexão é: ${newCamp.id}`);
+        }
+
+        // Integração com Fichas (gears_desert_db)
+        function loadCharactersForJoin() {
+            const select = document.getElementById('join_character_select');
+            const warning = document.getElementById('join_warning');
+            const btnSync = document.getElementById('btn_sync_join');
+            select.innerHTML = "";
+
+            let localFichas = localStorage.getItem('gears_desert_db');
+            if(localFichas) {
+                let fichasDB = JSON.parse(localFichas);
+                if(fichasDB.characters && fichasDB.characters.length > 0) {
+                    warning.style.display = "none";
+                    btnSync.disabled = false;
+                    fichasDB.characters.forEach(char => {
+                        let opt = document.createElement('option');
+                        opt.value = char.id; // Guarda o ID da ficha
+                        opt.textContent = char.bio.name || "Gear Sem Nome";
+                        // Armazena status base no dataset para extrair ao selecionar
+                        opt.dataset.hp = char.status.hp_cur || 20;
+                        opt.dataset.hpmax = char.status.hp_max || 20;
+                        opt.dataset.def = char.status.def_cur || 20;
+                        opt.dataset.ins = char.status.ins_cur || 0;
+                        select.appendChild(opt);
+                    });
+                    return;
+                }
+            }
+            // Falha
+            warning.style.display = "block";
+            btnSync.disabled = true;
+            select.innerHTML = '<option value="">[Nenhuma Ficha Disponível]</option>';
+        }
+
+        function joinCampaign() {
+            const targetId = document.getElementById('join_camp_id').value.trim().toUpperCase();
+            const charSelect = document.getElementById('join_character_select');
+            if (!targetId || !charSelect.value) return;
+
+            const camp = db.campaigns.find(c => c.id === targetId);
+            if (!camp) return alert("Sinal Inexistente. Verifique o ID de Conexão.");
+
+            // Verifica se este usuário já tem algum boneco aqui (simplificando: permite 1 por player)
+            if (camp.master === db.currentUser || camp.players.some(p => p.owner === db.currentUser)) {
+                return alert("Você já possui vínculo de mesa ativa com este sinal.");
+            }
+
+            const selectedOption = charSelect.options[charSelect.selectedIndex];
+            
+            camp.players.push({
+                owner: db.currentUser,
+                charId: charSelect.value,
+                name: selectedOption.textContent,
+                hp: parseInt(selectedOption.dataset.hp),
+                hp_max: parseInt(selectedOption.dataset.hpmax),
+                def: parseInt(selectedOption.dataset.def),
+                ins: parseInt(selectedOption.dataset.ins)
+            });
+            
+            camp.logs.push(`[SISTEMA] O Gear [${selectedOption.textContent}] (${db.currentUser}) sintonizou no canal da mesa.`);
+            
+            saveDB();
+            toggleModal('modal-join');
+            renderLobbyGrid();
+        }
+
+        // ==========================================================================
+        // FLUXO DE SINCRONIZAÇÃO DA MESA (MESTRE / JOGADOR)
+        // ==========================================================================
+        function enterCampaign(id) {
+            activeCampaignId = id;
+            const camp = db.campaigns.find(c => c.id === id);
+            
+            if (camp.master === db.currentUser) {
+                switchView('view-master');
+                document.getElementById('master_camp_name').textContent = camp.name;
+                document.getElementById('master_camp_id').textContent = camp.id;
+            } else {
+                switchView('view-player');
+            }
+
+            if (syncInterval) clearInterval(syncInterval);
+            syncInterval = setInterval(syncDashboard, 1000); 
+            syncDashboard(); 
+        }
+
+        function leaveDashboard() {
+            activeCampaignId = null;
+            if (syncInterval) clearInterval(syncInterval);
+            switchView('view-lobby');
+            document.getElementById('master_main_panel').className = "terminal-panel";
+            document.getElementById('player_env_header').className = "dashboard-header";
+        }
+
+        function copyId() {
+            navigator.clipboard.writeText(activeCampaignId);
+            alert("ID de Conexão copiado para a área de transferência.");
+        }
+
+        function syncDashboard() {
+            const rawDB = localStorage.getItem('gears_desert_nexus');
+            if (rawDB) db = JSON.parse(rawDB);
+
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            if (!camp) return leaveDashboard();
+
+            if (camp.master === db.currentUser) {
+                renderMasterDashboard(camp);
+            } else {
+                renderPlayerDashboard(camp);
+            }
+        }
+
+        // Sync Bidirecional com a ficha original do jogador (gears_desert_db)
+        function syncBackToFichasLocal(charId, stat, value) {
+            let localFichas = localStorage.getItem('gears_desert_db');
+            if(localFichas) {
+                let fichasDB = JSON.parse(localFichas);
+                let char = fichasDB.characters.find(c => c.id === charId);
+                if(char) {
+                    if(stat === 'hp') char.status.hp_cur = value;
+                    if(stat === 'def') char.status.def_cur = value;
+                    if(stat === 'ins') char.status.ins_cur = value;
+                    localStorage.setItem('gears_desert_db', JSON.stringify(fichasDB));
+                }
+            }
+        }
+
+        // ==========================================================================
+        // DASHBOARD DO MESTRE: RENDERS E AÇÕES
+        // ==========================================================================
+        function renderMasterDashboard(camp) {
+            // Preserva inputs de digitação para não apagar o que o mestre escreve no meio do sync
+            if(document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+                document.querySelector(`input[name="gea"][value="${camp.geaLevel}"]`).checked = true;
+                document.getElementById('master_flux_status').value = camp.instabilityStatus;
+                
+                document.getElementById('master_lore_notes').value = camp.loreNotes || "";
+                document.getElementById('master_faction_notes').value = camp.factionNotes || "";
+                document.getElementById('master_secret_notes').value = camp.masterNotes || "";
+            }
+
+            // Animação Ambiental
+            const panel = document.getElementById('master_main_panel');
+            panel.className = "terminal-panel"; // reset
+            if (camp.instabilityStatus === "Crítico") panel.classList.add("env-critical");
+            if (camp.instabilityStatus === "Calamidade") panel.classList.add("env-calamity");
+
+            // Players Grid
+            const pGrid = document.getElementById('master_players_grid');
+            pGrid.innerHTML = camp.players.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Sem jogadores conectados.</span>" : "";
+            camp.players.forEach((p, idx) => {
+                pGrid.innerHTML += `
+                    <div class="entity-card">
+                        <div class="entity-card-header">
+                            <span>${p.name}</span>
+                            <span style="font-size:0.7rem; color:var(--text-muted); font-weight:normal;">[${p.owner}]</span>
+                        </div>
+                        <div class="vital-row">
+                            <span>HP</span>
+                            <div class="stepper">
+                                <button onclick="updatePlayerVital(${idx}, 'hp', -1)">-</button>
+                                <input type="text" value="${p.hp}" readonly>
+                                <button onclick="updatePlayerVital(${idx}, 'hp', 1)">+</button>
+                            </div>
+                        </div>
+                        <div class="vital-row">
+                            <span>Defesa</span>
+                            <div class="stepper">
+                                <button onclick="updatePlayerVital(${idx}, 'def', -1)">-</button>
+                                <input type="text" value="${p.def}" readonly>
+                                <button onclick="updatePlayerVital(${idx}, 'def', 1)">+</button>
+                            </div>
+                        </div>
+                        <div class="vital-row">
+                            <span style="color:var(--flux-purple)">Insanidade</span>
+                            <div class="stepper">
+                                <button onclick="updatePlayerVital(${idx}, 'ins', -5)">-</button>
+                                <input type="text" value="${p.ins}" readonly>
+                                <button onclick="updatePlayerVital(${idx}, 'ins', 5)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Bestiário Render
+            const bGrid = document.getElementById('master_bestiary_grid');
+            bGrid.innerHTML = camp.bestiary.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Bestiário vazio.</span>" : "";
+            camp.bestiary.forEach((b, idx) => {
+                bGrid.innerHTML += `
+                    <div class="entity-card">
+                        <div class="entity-card-header" style="color:${b.type==='NPC'?'var(--success-green)':'var(--alert-red)'}">
+                            <span>${b.name} [${b.type}]</span>
+                            <button style="background:none; border:none; color:var(--alert-red); cursor:pointer;" onclick="deleteEntity('bestiary', ${idx})">✕</button>
+                        </div>
+                        <div class="vital-row">
+                            <span>HP Tracker</span>
+                            <div class="stepper">
+                                <button onclick="updateBestiaryHp(${idx}, -1)">-</button>
+                                <input type="text" value="${b.hp}" readonly>
+                                <button onclick="updateBestiaryHp(${idx}, 1)">+</button>
+                            </div>
+                        </div>
+                        <div style="font-size:0.75rem; margin-top:5px; color:var(--text-muted);">Def: ${b.def} | Notas: ${b.notes}</div>
+                        <button class="btn btn-flux" style="width:100%; margin-top:10px; padding:4px; font-size:0.7rem;" onclick="sendToInitiative('${b.name}')">Jogar na Iniciativa</button>
+                    </div>
+                `;
+            });
+
+            // Arsenal Render
+            const aGrid = document.getElementById('master_arsenal_grid');
+            aGrid.innerHTML = camp.armory.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Cofre vazio.</span>" : "";
+            camp.armory.forEach((a, idx) => {
+                aGrid.innerHTML += `
+                    <div class="entity-card">
+                        <div class="entity-card-header">
+                            <span>${a.name}</span>
+                            <button style="background:none; border:none; color:var(--alert-red); cursor:pointer;" onclick="deleteEntity('armory', ${idx})">✕</button>
+                        </div>
+                        <div style="font-size:0.75rem; margin-top:5px; color:var(--text-base);">Tipo: [${a.type}]</div>
+                        <div style="font-size:0.75rem; margin-top:5px; color:var(--text-muted);">Registro: ${a.notes}</div>
+                    </div>
+                `;
+            });
+
+            renderInitiativeList(camp, 'master_init_list', true);
+            renderLogs(camp, 'master_log_box');
+        }
+
+        function updateMasterEnv() {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            camp.geaLevel = parseInt(document.querySelector('input[name="gea"]:checked').value);
+            camp.instabilityStatus = document.getElementById('master_flux_status').value;
+            saveDB(); syncDashboard();
+        }
+
+        function saveTextAreas() {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            camp.loreNotes = document.getElementById('master_lore_notes').value;
+            camp.factionNotes = document.getElementById('master_faction_notes').value;
+            camp.masterNotes = document.getElementById('master_secret_notes').value;
+            saveDB();
+        }
+
+        function updatePlayerVital(pIndex, stat, modifier) {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            let val = camp.players[pIndex][stat] + modifier;
+            if (val < 0) val = 0;
+            if (stat === 'ins' && val > 100) val = 100;
+            camp.players[pIndex][stat] = val;
+            
+            // Reflete de volta para a ficha base no localstorage
+            syncBackToFichasLocal(camp.players[pIndex].charId, stat, val);
+            
+            saveDB(); syncDashboard();
+        }
+
+        // Adm Bestiario
+        function addBestiaryEntry() {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            const name = document.getElementById('bestiary_name').value.trim();
+            if(!name) return;
+            camp.bestiary.push({
+                name: name, type: document.getElementById('bestiary_type').value,
+                hp: parseInt(document.getElementById('bestiary_hp').value) || 0,
+                def: parseInt(document.getElementById('bestiary_def').value) || 0,
+                notes: document.getElementById('bestiary_notes').value
+            });
+            document.getElementById('bestiary_name').value = ""; document.getElementById('bestiary_notes').value = "";
+            saveDB(); syncDashboard();
+        }
+
+        function updateBestiaryHp(idx, modifier) {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            camp.bestiary[idx].hp += modifier;
+            saveDB(); syncDashboard();
+        }
+
+        // Adm Arsenal
+        function addArsenalEntry() {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            const name = document.getElementById('arsenal_name').value.trim();
+            if(!name) return;
+            camp.armory.push({
+                name: name, type: document.getElementById('arsenal_type').value,
+                notes: document.getElementById('arsenal_notes').value
+            });
+            document.getElementById('arsenal_name').value = ""; document.getElementById('arsenal_notes').value = "";
+            saveDB(); syncDashboard();
+        }
+
+        function deleteEntity(arrayName, idx) {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            camp[arrayName].splice(idx, 1);
+            saveDB(); syncDashboard();
+        }
+
+        function sendToInitiative(name) {
+            document.getElementById('init_name').value = name;
+            document.getElementById('init_val').focus();
+        }
+
+        // ==========================================================================
+        // DASHBOARD DO JOGADOR
+        // ==========================================================================
+        function renderPlayerDashboard(camp) {
+            document.getElementById('player_camp_name').textContent = camp.name;
+            document.getElementById('player_gea_val').textContent = camp.geaLevel;
+            document.getElementById('player_flux_val').textContent = camp.instabilityStatus;
+
+            const header = document.getElementById('player_env_header');
+            header.className = "dashboard-header";
+            if (camp.instabilityStatus === "Crítico") header.classList.add("env-critical");
+            if (camp.instabilityStatus === "Calamidade") header.classList.add("env-calamity");
+
+            const myPlayerObj = camp.players.find(p => p.owner === db.currentUser);
+            const myIndex = camp.players.findIndex(p => p.owner === db.currentUser);
+            
+            const vBox = document.getElementById('player_vitals_display');
+            if (myPlayerObj) {
+                vBox.innerHTML = `
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--success-green);">
+                        <label>Integridade Física (HP)</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'hp', -1)">-</button>
+                            <input type="text" value="${myPlayerObj.hp}" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'hp', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--text-base);">
+                        <label>Defesa Cinética</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'def', -1)">-</button>
+                            <input type="text" value="${myPlayerObj.def}" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'def', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--flux-purple);">
+                        <label>Mente (Insanidade)</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'ins', -5)">-</button>
+                            <input type="text" value="${myPlayerObj.ins}" style="color:${myPlayerObj.ins > 60 ? 'var(--alert-red)' : '#fff'};" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'ins', 5)">+</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderInitiativeList(camp, 'player_init_list', false);
+            renderLogs(camp, 'player_log_box');
+        }
+
+        // ==========================================================================
+        // INICIATIVA
+        // ==========================================================================
+        function addInitiative() {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            const name = document.getElementById('init_name').value.trim();
+            const val = parseInt(document.getElementById('init_val').value) || 0;
+            if (!name) return;
+
+            camp.combatTracker.entities.push({ name: name, value: val, tempHp: 0 });
+            camp.combatTracker.entities.sort((a,b) => b.value - a.value);
+            
+            document.getElementById('init_name').value = ""; document.getElementById('init_val').value = "";
+            saveDB(); syncDashboard();
+        }
+
+        function removeInitiative(index) {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            camp.combatTracker.entities.splice(index, 1);
+            if (camp.combatTracker.activeIndex >= camp.combatTracker.entities.length) camp.combatTracker.activeIndex = 0;
+            saveDB(); syncDashboard();
+        }
+
+        function nextTurn() {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            if (camp.combatTracker.entities.length === 0) return;
+            camp.combatTracker.activeIndex++;
+            if (camp.combatTracker.activeIndex >= camp.combatTracker.entities.length) camp.combatTracker.activeIndex = 0;
+            saveDB(); syncDashboard();
+        }
+
+        function updateInitHp(index, mod) {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            camp.combatTracker.entities[index].tempHp += mod;
+            saveDB(); syncDashboard();
+        }
+
+        function renderInitiativeList(camp, containerId, isMaster) {
+            const box = document.getElementById(containerId);
+            if (camp.combatTracker.entities.length === 0) { box.innerHTML = "<span style='font-size:0.75rem; color:var(--text-muted);'>Nenhum radar de combate ativo.</span>"; return; }
+
+            box.innerHTML = camp.combatTracker.entities.map((ent, idx) => {
+                const isActive = idx === camp.combatTracker.activeIndex ? "active-turn" : "";
+                let html = `<div class="init-row ${isActive}">
+                    <div style="display:flex; flex-direction:column;">
+                        <strong style="color:#fff;">${ent.name}</strong>
+                        <span style="font-size:0.7rem; color:var(--success-green);">[Mod: ${ent.value}]</span>
+                    </div>`;
+
+                if (isMaster) {
+                    html += `
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div class="stepper" style="transform: scale(0.85); transform-origin: right;">
+                            <button onclick="updateInitHp(${idx}, -1)">-</button>
+                            <input type="text" value="${ent.tempHp}" readonly>
+                            <button onclick="updateInitHp(${idx}, 1)">+</button>
+                        </div>
+                        <button class="btn btn-danger" style="padding:4px; font-size:0.7rem;" onclick="removeInitiative(${idx})">X</button>
+                    </div>`;
+                }
+                html += `</div>`;
+                return html;
+            }).join("");
+        }
+
+        // ==========================================================================
+        // DADOS GLOBAIS
+        // ==========================================================================
+        function rollDiceGlobal(faces) {
+            const camp = db.campaigns.find(c => c.id === activeCampaignId);
+            if (!camp) return;
+
+            const result = Math.floor(Math.random() * faces) + 1;
+            const time = new Date().toLocaleTimeString('pt-BR');
+            let logStr = `<span class="log-timestamp">[${time}]</span> <span style="color:#fff;">[${db.currentUser}]</span> rolou D${faces} -> <strong style="color:var(--text-base);">${result}</strong>`;
+
+            if (faces === 20 && result === 20) logStr += ` <span class="log-crit">>> SINAL CRÍTICO <<</span>`;
+            
+            camp.logs.push(logStr);
+            saveDB(); syncDashboard();
+        }
+
+        function renderLogs(camp, containerId) {
+            const box = document.getElementById(containerId);
+            box.innerHTML = camp.logs.map(l => `<div class="log-entry">${l}</div>`).join("");
+            box.scrollTop = box.scrollHeight;
+        }
+    </script>
+</body>
+</html>

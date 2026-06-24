@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gears of Desert - Terminal Central</title>
+    <style>
+        /* ==========================================================================
+           CONFIGURAÇÕES GERAIS E PALETA DE CORES (INDUSTRIAL / FOSCA)
+           ========================================================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #121314;
+            color: #DCA874; /* Tom Areia Base */
+            min-height: 100vh;
+            line-height: 1.6;
+            position: relative;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* EFEITO DE TELA DE TERMINAL ANTIGO (SCANLINES SUTIS) */
+        .bg-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 999;
+            opacity: 0.04;
+            background-image: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                #000 2px,
+                #000 4px
+            );
+            pointer-events: none;
+        }
+
+        /* ==========================================================================
+           CABEÇALHO FIXO E MENU LATERAL (SIDEBAR)
+           ========================================================================== */
+        header {
+            background-color: #161718;
+            border-bottom: 2px solid #A35A38; /* Detalhes Industriais */
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 90;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .menu-btn {
+            background: none;
+            border: none;
+            color: #DCA874;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px 10px;
+            margin-right: 20px;
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .menu-btn:hover { 
+            color: #BD4E2E; 
+            transform: scale(1.1);
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+            color: #ffffff;
+            text-transform: uppercase;
+            text-shadow: 0 0 5px rgba(220, 168, 116, 0.3);
+        }
+
+        .system-status {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            color: #6A6D71; /* Cor de Terminal/Auxiliar */
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid #2d2e30;
+            padding: 6px 12px;
+            background-color: #121314;
+            border-radius: 2px;
+        }
+
+        .system-status span {
+            color: #8c9675; /* Verde funcional */
+            font-weight: bold;
+            animation: blink 1.5s infinite alternate;
+        }
+
+        @keyframes blink {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        /* SIDEBAR DIRECIONAL */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100%;
+            background-color: #121314;
+            border-right: 3px solid #5A4470; /* Detalhes Místicos */
+            z-index: 100;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 5px 0 25px rgba(0,0,0,0.7);
+        }
+
+        .sidebar.active { transform: translateX(0); }
+
+        .close-btn {
+            align-self: flex-end;
+            background: none;
+            border: none;
+            color: #DCA874;
+            font-size: 20px;
+            cursor: pointer;
+            margin-bottom: 25px;
+            font-family: monospace;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover { color: #BD4E2E; }
+
+        .logo-container {
+            width: 100%;
+            min-height: 80px;
+            border: 1px dashed #A35A38;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 35px;
+            text-align: center;
+            padding: 10px;
+            background: rgba(163, 90, 56, 0.05);
+        }
+
+        .logo-placeholder {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #DCA874;
+            letter-spacing: 2px;
+            font-family: monospace;
+        }
+
+        .nav-links { display: flex; flex-direction: column; gap: 12px; }
+
+        .nav-links a {
+            color: #DCA874;
+            text-decoration: none;
+            padding: 12px 15px;
+            background-color: #161718;
+            border-left: 4px solid #A35A38;
+            font-weight: bold;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            font-family: monospace;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background-color: #1f1b24;
+            border-left-color: #BD4E2E;
+            color: #ffffff;
+            transform: translateX(5px);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 95;
+            display: none;
+            backdrop-filter: blur(3px);
+        }
+
+        .sidebar-overlay.active { display: block; }
+
+        /* ==========================================================================
+           CONTEÚDO PRINCIPAL (DASHBOARD DIVIDIDO)
+           ========================================================================== */
+        main {
+            max-width: 1200px;
+            width: 100%;
+            margin: 110px auto 40px auto;
+            padding: 0 20px;
+        }
+
+        /* Seção Introdutória Superior */
+        .terminal-intro {
+            background-color: #161718;
+            border: 1px solid #2d2e30;
+            border-left: 4px solid #8c9675;
+            padding: 20px;
+            border-radius: 2px;
+            margin-bottom: 25px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.6);
+        }
+
+        .terminal-intro h2 {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            font-family: monospace;
+            color: #ffffff;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .terminal-intro p {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #DCA874;
+        }
+
+        /* Layout em Duas Colunas: Info Direta vs Navegação */
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 25px;
+            align-items: start;
+        }
+
+        /* COLUNA DE LEITURA DIRETA (LORE / SISTEMA) */
+        .info-stream {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-block {
+            background-color: #161718;
+            border: 1px solid #2d2e30;
+            padding: 25px;
+            border-radius: 2px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .info-block h3 {
+            font-size: 1.1rem;
+            color: #ffffff;
+            text-transform: uppercase;
+            font-family: monospace;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #2d2e30;
+            padding-bottom: 5px;
+        }
+
+        .info-block p {
+            font-size: 0.95rem;
+            color: #DCA874;
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+
+        .info-block p:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-block ul {
+            margin-left: 20px;
+            list-style-type: square;
+            color: #DCA874;
+            font-size: 0.95rem;
+        }
+
+        .info-block li {
+            margin-bottom: 6px;
+        }
+
+        /* COLUNA DE ENTRADAS / CARD GRID */
+        .hub-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .hub-card {
+            background-color: #161718;
+            border: 1px solid #2d2e30;
+            border-left: 5px solid #6A6D71; /* Borda padrão fosca terminal */
+            padding: 25px 20px;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 160px;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border-radius: 2px;
+        }
+
+        .hub-card .card-meta {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #6A6D71;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .hub-card h4 {
+            font-size: 1.2rem;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .hub-card p {
+            font-size: 0.9rem;
+            color: #DCA874;
+            line-height: 1.4;
+        }
+
+        .hub-card .card-action {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #6A6D71;
+            margin-top: 15px;
+            text-align: right;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: color 0.2s;
+        }
+
+        /* HOVER EFFECTS DO GRID - BRILHO INDUSTRIAL FOSCO */
+        .hub-card:hover {
+            transform: translateX(5px);
+            border-left-color: #A35A38; /* Destaque Industrial */
+            border-color: #3a3b3d;
+            box-shadow: 0 4px 15px rgba(163, 90, 56, 0.1);
+        }
+
+        .hub-card:hover h4 { color: #DCA874; }
+        .hub-card:hover .card-action { color: #A35A38; }
+
+        /* ==========================================================================
+           RODAPÉ DE CRÉDITOS
+           ========================================================================== */
+        footer {
+            border-top: 1px solid #2d2e30;
+            background-color: #161718;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #6A6D71;
+            font-family: monospace;
+            letter-spacing: 1px;
+            width: 100%;
+            margin-top: 40px;
+        }
+
+        /* RESPONSIVIDADE INTERFACE */
+        @media (max-width: 950px) {
+            .dashboard-layout {
+                grid-template-columns: 1fr;
+            }
+            .hub-grid {
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.2rem; }
+            .system-status { font-size: 0.75rem; padding: 4px 8px; }
+            main { margin-top: 100px; }
+            .hub-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 540px) {
+            header { flex-direction: row; flex-wrap: wrap; gap: 10px; padding: 10px 15px; }
+            .system-status { width: 100%; text-align: center; order: 3; }
+            main { margin-top: 140px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-overlay"></div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMenu()"></div>
+
+    <header>
+        <div class="header-left">
+            <button class="menu-btn" onclick="toggleMenu()" aria-label="Abrir Menu">☰</button>
+            <h1>Gears of Desert</h1>
+        </div>
+        <div class="system-status">
+            Plataforma Oficial do Sistema // Versão Core 0.1 // <span>ONLINE</span>
+        </div>
+    </header>
+
+    <div class="sidebar" id="sidebar">
+        <button class="close-btn" onclick="toggleMenu()">✕ [FECHAR]</button>
+        <div class="logo-container">
+            <span class="logo-placeholder">GEARS OF DESERT<br>[NÚCLEO_HUB]</span>
+        </div>
+        <nav class="nav-links">
+            <a href="index.html" class="active">🏠 Início / Lore</a>
+            <a href="regras.html">📖 Livro de Regras</a>
+            <a href="wiki.html">🔍 Enciclopédia Wiki</a>
+            <a href="fichas.html">👤 Minhas Fichas</a>
+            <a href="mestre.html">🌋 Painel do Mestre</a>
+        </nav>
+    </div>
+
+    <main>
+        
+        <div class="terminal-intro">
+            <h2>Sobre o Hub</h2>
+            <p>Bem-vindo ao Hub Oficial de Gears of Desert. Esta plataforma reúne as regras, ferramentas e informações necessárias para jogar, registrar e expandir o sistema. O conteúdo desta plataforma está em constante desenvolvimento. Novas campanhas, personagens, criaturas, regiões e sistemas poderão ser adicionados conforme o universo evolui. Gears Of Desert é um mundo vivo. Esta plataforma existe para registrar sua história.</p>
+        </div>
+
+        <div class="dashboard-layout">
+            
+            <div class="info-stream">
+                
+                <div class="info-block">
+                    <h3>O Mundo</h3>
+                    <p>O mundo de Gears Of Desert é uma terra marcada por ruínas, escassez e sobrevivência. Grandes civilizações desapareceram. Impérios caíram. Conhecimentos foram perdidos.</p>
+                    <p>O que restou foram cidades decadentes, assentamentos isolados, regiões inexploradas e vastas extensões de deserto onde a morte costuma chegar antes da ajuda.</p>
+                    <p>A tecnologia ainda existe, mas raramente é compreendida por completo. Máquinas antigas continuam funcionando muito além do que deveriam. Relíquias esquecidas reaparecem em escavações. Trens cruzam regiões hostis carregando recursos preciosos. Exploradores desaparecem em ruínas das quais nunca retornam. A humanidade continua avançando, mas quase sempre sobre os destroços do passado.</p>
+                </div>
+
+                <div class="info-block">
+                    <h3>Os Fluxos</h3>
+                    <p>Toda a realidade é sustentada pelos Fluxos. Eles não são apenas uma forma de magia. São os fundamentos da própria existência. Toda criatura, objeto, entidade ou fenômeno possui ligação com pelo menos um Fluxo, mesmo sem perceber.</p>
+                    <p>Os Fluxos conhecidos são:</p>
+                    <ul style="margin-bottom: 12px;">
+                        <li>Carne</li>
+                        <li>Cognição</li>
+                        <li>Alma</li>
+                        <li>Corrente</li>
+                        <li>Trono</li>
+                        <li>Corrupção</li>
+                        <li>Morte</li>
+                    </ul>
+                    <p>Eles representam aspectos fundamentais da realidade, da vida, da consciência, da espiritualidade, da autoridade, da transformação e do fim. Relíquias, rituais, tecnologias avançadas e fenômenos sobrenaturais existem graças à interação entre os Fluxos. Compreendê-los significa adquirir poder. Aproximar-se demais deles significa correr o risco de perder a própria humanidade.</p>
+                </div>
+
+                <div class="info-block">
+                    <h3>Relíquias</h3>
+                    <p>Relíquias são objetos capazes de armazenar, estabilizar ou manipular Fluxos. Muitas foram criadas por civilizações antigas. Outras possuem origens desconhecidas. Algumas parecem impossíveis de reproduzir mesmo com a tecnologia atual.</p>
+                    <p>As relíquias são a principal ferramenta da magia moderna. Elas permitem que indivíduos comuns interajam com forças que normalmente estariam além da compreensão humana.</p>
+                    <p>Porém, todo uso possui riscos. Fluxos instáveis, corrupção espiritual, deformações físicas e eventos anômalos são consequências comuns para aqueles que ultrapassam seus limites.</p>
+                </div>
+
+                <div class="info-block">
+                    <h3>Os Gears</h3>
+                    <p>Os Gears são uma organização descentralizada com aproximadamente duzentos anos de existência. Não são um governo. Não são um exército. Não são heróis. São sobreviventes. Exploradores. Mercenários. Arqueólogos. Caçadores de recompensas. Pessoas dispostas a enfrentar ameaças que a maioria prefere evitar.</p>
+                    <p>Embora estejam espalhados pelo mundo, compartilham símbolos, tradições e uma identidade comum. Muitos são vistos como oportunistas ou saqueadores. Outros são lembrados como os únicos capazes de enfrentar criaturas, ruínas e fenômenos que ameaçam comunidades inteiras. Grande parte do conhecimento moderno sobre relíquias, Fluxos e regiões desconhecidas existe graças aos Gears. A maioria das campanhas acompanha membros da organização ou indivíduos diretamente ligados a ela. Ser um Gear não significa ser um herói. Significa aceitar que o mundo é perigoso demais para permanecer parado.</p>
+                </div>
+
+                <div class="info-block">
+                    <h3>Temas do Sistema</h3>
+                    <ul>
+                        <li>Sobrevivência</li>
+                        <li>Exploração</li>
+                        <li>Horror Existencial</li>
+                        <li>Decadência Espiritual</li>
+                        <li>Religião e Fanatismo</li>
+                        <li>Identidade</li>
+                        <li>Consequências Permanentes</li>
+                        <li>Gerenciamento de Recursos</li>
+                        <li>Descoberta</li>
+                        <li>Liberdade Narrativa</li>
+                    </ul>
+                    <p style="margin-top: 12px;">Os personagens não são escolhidos por profecias nem destinados a salvar o mundo. São pessoas tentando sobreviver dentro de um universo que parece cada vez mais próximo do colapso. Cada escolha possui consequências. Cada recurso possui valor. E toda aproximação dos Fluxos possui um preço.</p>
+                </div>
+
+            </div>
+
+            <div class="hub-grid">
+                
+                <a href="wiki.html" class="hub-card">
+                    <div>
+                        <div class="card-meta">[ DIRETÓRIO // 01 ]</div>
+                        <h4>Enciclopédia</h4>
+                        <p>Acesso ao banco de dados sobre os Fluxos, Relíquias, Crônicas e História.</p>
+                    </div>
+                    <div class="card-action">Acessar Arquivos_</div>
+                </a>
+
+                <a href="regras.html" class="hub-card">
+                    <div>
+                        <div class="card-meta">[ DIRETÓRIO // 02 ]</div>
+                        <h4>Livro de Regras</h4>
+                        <p>Diretrizes estruturais de sobrevivência, mecânicas do sistema e resoluções.</p>
+                    </div>
+                    <div class="card-action">Carregar Matriz_</div>
+                </a>
+
+                <a href="fichas.html" class="hub-card">
+                    <div>
+                        <div class="card-meta">[ DIRETÓRIO // 03 ]</div>
+                        <h4>Minhas Fichas</h4>
+                        <p>Gerenciador de personagens, atribuições de Fluxo e inventário de sucata.</p>
+                    </div>
+                    <div class="card-action">Sincronizar Sujeitos_</div>
+                </a>
+
+                <a href="mestre.html" class="hub-card">
+                    <div>
+                        <div class="card-meta">[ DIRETÓRIO // 04 ]</div>
+                        <h4>Painel do Mestre</h4>
+                        <p>Ferramentas de narração, controle ambiental e geradores de anomalias.</p>
+                    </div>
+                    <div class="card-action">Iniciar Protocolo_</div>
+                </a>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <footer>
+        GEARS OF DESERT // PLATAFORMA OFICIAL DO SISTEMA // VERSÃO CORE 0.1 // DESENVOLVIDO EM COOPERAÇÃO COM I.A.
+    </footer>
+
+    <script>
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+    </script>
+</body>
+</html>
