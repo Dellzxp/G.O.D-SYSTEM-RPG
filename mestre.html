@@ -531,7 +531,7 @@
             });
         }
 
-        function createCampaign() {
+      function createCampaign() {
             const name = document.getElementById('create_camp_name').value.trim();
             if (!name) return alert("Erro: Defina a Designação da Campanha.");
 
@@ -550,6 +550,10 @@
 
             db.campaigns.push(newCamp);
             saveDB();
+            
+            // CORRIGIDO: Removido o parêntese duplo que quebrava o script do Mestre
+            window.enviarCampanhaParaNuvem(newCamp);
+            
             toggleModal('modal-create');
             renderLobbyGrid();
             alert(`Sinal Fundado! O ID de conexão é: ${newCamp.id}`);
@@ -588,10 +592,14 @@
             select.innerHTML = '<option value="">[Nenhuma Ficha Disponível]</option>';
         }
 
-        function joinCampaign() {
+        // MODIFICADO: Agora é async para buscar na nuvem antes de tentar entrar localmente
+        async function joinCampaign() {
             const targetId = document.getElementById('join_camp_id').value.trim().toUpperCase();
             const charSelect = document.getElementById('join_character_select');
             if (!targetId || !charSelect.value) return;
+
+            // NOVO: Puxa o sinal atualizado da nuvem para o LocalStorage do jogador
+            await window.puxarCampanhaDaNuvem(targetId);
 
             const camp = db.campaigns.find(c => c.id === targetId);
             if (!camp) return alert("Sinal Inexistente. Verifique o ID de Conexão.");
@@ -616,6 +624,10 @@
             camp.logs.push(`[SISTEMA] O Gear [${selectedOption.textContent}] (${db.currentUser}) sintonizou no canal da mesa.`);
             
             saveDB();
+            
+            // NOVO: Devolve a campanha para o Firebase com o novo jogador adicionado
+            await window.enviarCampanhaParaNuvem(camp);
+
             toggleModal('modal-join');
             renderLobbyGrid();
         }
@@ -994,11 +1006,12 @@
             box.innerHTML = camp.logs.map(l => `<div class="log-entry">${l}</div>`).join("");
             box.scrollTop = box.scrollHeight;
         }
-    </script> <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+    </script> 
 
-        // Suas chaves oficiais do Gears of Desert injetadas aqui:
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+
         const firebaseConfig = {
             apiKey: "AIzaSyC9a9k39aToZcZ5_zwWqNM_4vFXELoYoTI",
             authDomain: "gears-of-desert.firebaseapp.com",
@@ -1009,68 +1022,43 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const dbFirebase = getFirestore(app);
 
-        // Pega o ID do usuário que logou lá na tela de login
-        const USUARIO_ID = sessionStorage.getItem('usuario_id');
-        const USUARIO_NOME = sessionStorage.getItem('usuario_nome');
-
-        // Segurança: Se tentou entrar sem logar, ejeta para o Terminal
-        if (!USUARIO_ID) {
-            alert("SINAL INEXISTENTE: Autentique-se no terminal principal primeiro.");
-            window.location.href = 'login.html';
-        }
-
-        // --- FUNÇÃO 1: CRIAR UMA CAMPANHA NOVA (Para o Mestre) ---
-        window.criarNovaCampanhaNoBanco = async function(codigoCampanha, nomeCampanha) {
+        // Envia estrutura completa de uma campanha para a nuvem
+        window.enviarCampanhaParaNuvem = async function(campanhaObj) {
+            if (!campanhaObj || !campanhaObj.id) return;
             try {
-                const docRef = doc(db, "campanhas", codigoCampanha);
-                
-                const dadosCampanha = {
-                    nome: nomeCampanha,
-                    mestreId: USUARIO_ID,
-                    mestreNome: USUARIO_NOME,
-                    jogadores: [], 
-                    criadoEm: new Date().toISOString()
-                };
-
-                await setDoc(docRef, dadosCampanha);
-                console.log(`Campanha ${codigoCampanha} transmitida com sucesso para a rede.`);
-                alert(`Campanha criada! Código de transmissão: ${codigoCampanha}`);
-            } catch (error) {
-                console.error("Erro ao transmitir sinal de campanha: ", error);
+                // CORRIGIDO: Variável interna ajustada de campaignObj para campanhaObj
+                await setDoc(doc(dbFirebase, "campanhas", campanhaObj.id), campanhaObj);
+                console.log(`[REDE] Campanha ${campanhaObj.id} sincronizada no Firebase.`);
+            } catch (e) {
+                console.error("Falha ao transmitir sinal para a nuvem:", e);
             }
         };
 
-        // --- FUNÇÃO 2: ENTRAR EM UMA CAMPANHA EXISTENTE (Para o Jogador) ---
-        window.entrarNaCampanhaPeloCodigo = async function(codigoCampanha) {
+        // Puxa dados da nuvem direto para o banco LocalStorage do navegador atual
+        window.puxarCampanhaDaNuvem = async function(codigoCampanha) {
+            if (!codigoCampanha) return;
             try {
-                const docRef = doc(db, "campanhas", codigoCampanha);
+                const docRef = doc(dbFirebase, "campanhas", codigoCampanha);
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
-                    // Se a campanha existe, adiciona o ID do jogador na lista de membros dela
-                    await updateDoc(docRef, {
-                        jogadores: arrayUnion({
-                            id: USUARIO_ID,
-                            nome: USUARIO_NOME
-                        })
-                    });
+                    const dadosCampanha = docSnap.data();
                     
-                    alert(`Sinal sintonizado! Você entrou na campanha: ${docSnap.data().nome}`);
-                    // Salva o código da campanha atual na sessão do navegador
-                    sessionStorage.setItem('campanha_atual', codigoCampanha);
-                    
-                    // Recarrega a página ou roda sua função para desenhar a mesa na tela
-                    if (typeof inicializarMesaDoJogo === "function") inicializarMesaDoJogo();
-                    
+                    if (window.db && window.db.campaigns) {
+                        window.db.campaigns = window.db.campaigns.filter(c => c.id !== codigoCampanha);
+                        window.db.campaigns.push(dadosCampanha);
+                        window.saveDB(); 
+                        console.log(`[REDE] Campanha ${codigoCampanha} sintonizada localmente.`);
+                    }
                 } else {
-                    alert("FALHA DE CONEXÃO: Código de campanha inexistente no deserto.");
+                    alert("SINAL INEXISTENTE: Esse código de campanha não foi encontrado na nuvem.");
                 }
-            } catch (error) {
-                console.error("Erro ao sintonizar na campanha: ", error);
+            } catch (e) {
+                console.error("Erro ao sintonizar:", e);
             }
         };
-    </script>  
+    </script>
 </body>
 </html>
