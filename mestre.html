@@ -382,10 +382,12 @@
                             <button class="btn" onclick="rollDiceGlobal(12)">d12</button>
                             <button class="btn btn-success" onclick="rollDiceGlobal(20)">d20</button>
                             <button class="btn" onclick="rollDiceGlobal(100)">d100</button>
-                        </div>
-                        <div class="console-log" id="master_log_box"></div>
-                        <div id="master_log_box" class="log-box"></div>
-
+<div class="console-log" id="master_log_box"></div>
+                    
+                    <div style="display: flex; gap: 5px; margin-top: 10px; width: 100%;">
+                        <input type="text" id="chat_input_master" placeholder="Digite uma mensagem no Nexus..." style="flex: 1; background: #111; color: #fff; border: 1px solid var(--text-muted); padding: 5px;" onkeydown="if(event.key === 'Enter') sendChatMessage('master')">
+                        <button class="btn" style="padding: 5px 15px;" onclick="sendChatMessage('master')">Enviar</button>
+                    </div>
 <div style="display: flex; gap: 5px; margin-top: 10px;">
     <input type="text" id="chat_input" placeholder="Digite uma mensagem no Nexus..." style="flex: 1; background: #111; color: #fff; border: 1px solid var(--text-muted); padding: 5px;" onkeydown="if(event.key === 'Enter') sendChatMessage()">
     <button class="btn" onclick="sendChatMessage()">Enviar</button>
@@ -435,14 +437,17 @@
                             <button class="btn" onclick="rollDiceGlobal(12)">d12</button>
                             <button class="btn btn-flux" onclick="rollDiceGlobal(20)">d20</button>
                             <button class="btn" onclick="rollDiceGlobal(100)">d100</button>
-                        </div>
-                        <div class="console-log" id="player_log_box"></div>
+                      <div class="console-log" id="player_log_box"></div>
+                    
+                    <div style="display: flex; gap: 5px; margin-top: 10px; width: 100%;">
+                        <input type="text" id="chat_input" placeholder="Digite uma mensagem no Nexus..." style="flex: 1; background: #111; color: #fff; border: 1px solid var(--text-muted); padding: 5px;" onkeydown="if(event.key === 'Enter') sendChatMessage()">
+                        <button class="btn" style="padding: 5px 15px;" onclick="sendChatMessage()">Enviar</button>
                     </div>
                 </div>
             </div>
-        </section>
-
-    </main>
+        </div>
+    </section>
+</main>
 
     <footer>GEARS OF DESERT // NEXUS DE MESA VIRTUAL RELACIONAL // SINCRONIZAÇÃO LOCALSTORAGE</footer>
 
@@ -1011,738 +1016,2192 @@
             const box = document.getElementById(containerId);
             box.innerHTML = camp.logs.map(l => `<div class="log-entry">${l}</div>`).join("");
             box.scrollTop = box.scrollHeight;
-        }
-    </script> 
-<script type="module">
+             
+        }  </script> 
+        <script type="module">
+        // ==========================================================================
+        // 1. CONFIGURAÇÃO FIREBASE E IMPORTAÇÕES (NÚCLEO)
+        // ==========================================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
 
-    window.sendChatMessage = function() {
-    const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-    if (!camp) return;
-
-    const input = document.getElementById('chat_input');
-    const msg = input ? input.value.trim() : "";
-    if (!msg) return;
-
-    const time = new Date().toLocaleTimeString('pt-BR');
-    // Formata a mensagem com o nome de quem enviou
-    let chatStr = `<span class="log-timestamp">[${time}]</span> <strong style="color:var(--success-green);">[${window.db.currentUser}]:</strong> <span style="color:#fff;">${msg}</span>`;
-
-    camp.logs.push(chatStr);
-    
-    // Mantém o limite de mensagens para não travar o banco
-    if (camp.logs.length > 50) camp.logs.shift();
-
-    input.value = ""; // Limpa a caixa de texto
-    window.saveDB();  // Envia para a nuvem em tempo real
-};
-    // ==========================================================================
-    // 1. CONFIGURAÇÃO FIREBASE E IMPORTAÇÕES (NÚCLEO)
-    // ==========================================================================
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyC9a9k39aToZcZ5_zwWqNM_4vFXELoYoTI",
-        authDomain: "gears-of-desert.firebaseapp.com",
-        projectId: "gears-of-desert",
-        storageBucket: "gears-of-desert.firebasestorage.app",
-        messagingSenderId: "860761444217",
-        appId: "1:860761444217:web:62107c127835d8583aa9a8"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const dbFirebase = getFirestore(app);
-
-    // ==========================================================================
-    // 2. ESTADO GLOBAL E GERENCIAMENTO DE DADOS (LOCAL E NUVEM)
-    // ==========================================================================
-    window.db = JSON.parse(localStorage.getItem('gears_desert_nexus')) || { campaigns: [], currentUser: null };
-    window.activeCampaignId = null;
-    let unsubscribeSnapshot = null;
-
-    // Salva no localStorage e empurra para o Firebase (se não for bloqueado)
-    window.saveDB = async function(skipCloud = false) {
-        localStorage.setItem('gears_desert_nexus', JSON.stringify(window.db));
-        
-        if (window.activeCampaignId && !skipCloud) {
-            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-            if (camp) {
-                try {
-                    await setDoc(doc(dbFirebase, "campanhas", window.activeCampaignId), camp);
-                } catch (error) {
-                    console.error("[ERRO CRÍTICO] Falha ao sincronizar com o Firebase:", error);
-                }
-            }
-        }
-    };
-
-    window.switchTab = function(tabId, btn) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById(tabId).classList.add('active');
-    };
-
-    // ==========================================================================
-    // 3. AUTENTICAÇÃO E LOBBY (CRIAR E ENTRAR EM SINAIS)
-    // ==========================================================================
-    window.authenticateUser = function() {
-        const nameInput = document.getElementById('auth_username');
-        const name = nameInput ? nameInput.value.trim() : "";
-        if (!name) return alert("Erro: Identificação obrigatória.");
-        
-        window.db.currentUser = name;
-        window.saveDB(true);
-        location.reload();
-    };
-
-    window.generateHash = function() { 
-        return 'GEAR-' + Math.random().toString(36).substr(2, 6).toUpperCase(); 
-    };
-
-    window.renderLobbyGrid = function() {
-        const grid = document.getElementById('lobby_grid');
-        if (!grid) return;
-        grid.innerHTML = "";
-        
-        const myCampaigns = window.db.campaigns.filter(c => 
-            c.master === window.db.currentUser || 
-            c.players.some(p => p.owner === window.db.currentUser)
-        );
-
-        if (myCampaigns.length === 0) {
-            grid.innerHTML = "<span style='color: var(--text-muted); font-size: 0.8rem;'>[ NENHUMA CONEXÃO ESTABELECIDA NO NEXUS. ]</span>";
-            return;
-        }
-
-        myCampaigns.forEach(camp => {
-            const isMaster = camp.master === window.db.currentUser;
-            const roleText = isMaster ? "Mestre" : "Jogador";
-            const roleClass = isMaster ? "role-mestre" : "role-jogador";
-
-            const card = document.createElement('div');
-            card.className = "campaign-card";
-            card.innerHTML = `
-                <div class="campaign-card-header">
-                    <strong style="color: #fff;">${camp.name}</strong>
-                    <span class="role-badge ${roleClass}">${roleText}</span>
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">[ID de Conexão]: <span style="color:var(--text-base);">${camp.id}</span></div>
-                <button class="btn" style="width:100%" onclick="enterCampaign('${camp.id}')">Acessar Painel</button>
-            `;
-            grid.appendChild(card);
-        });
-    };
-
-    window.createCampaign = async function() {
-        const nameInput = document.getElementById('create_camp_name');
-        const name = nameInput ? nameInput.value.trim() : "";
-        if (!name) return alert("Erro: Defina a Designação da Campanha.");
-
-        const newCamp = {
-            id: window.generateHash(),
-            name: name,
-            master: window.db.currentUser,
-            geaLevel: 0,
-            instabilityStatus: "Estável",
-            logs: [`[SISTEMA] Conexão Matriz estabelecida. Campanha fundada por ${window.db.currentUser}.`],
-            combatTracker: { activeIndex: -1, entities: [] },
-            players: [],
-            masterNotes: "", loreNotes: "", factionNotes: "",
-            bestiary: [], armory: []
+        const firebaseConfig = {
+            apiKey: "AIzaSyC9a9k39aToZcZ5_zwWqNM_4vFXELoYoTI",
+            authDomain: "gears-of-desert.firebaseapp.com",
+            projectId: "gears-of-desert",
+            storageBucket: "gears-of-desert.firebasestorage.app",
+            messagingSenderId: "860761444217",
+            appId: "1:860761444217:web:62107c127835d8583aa9a8"
         };
 
-        window.db.campaigns.push(newCamp);
-        try {
-            await setDoc(doc(dbFirebase, "campanhas", newCamp.id), newCamp);
+        const app = initializeApp(firebaseConfig);
+        const dbFirebase = getFirestore(app);
+
+        // ==========================================================================
+        // 2. ESTADO GLOBAL E GERENCIAMENTO DE DADOS (LOCAL E NUVEM)
+        // ==========================================================================
+        window.db = JSON.parse(localStorage.getItem('gears_desert_nexus')) || { campaigns: [], currentUser: null };
+        window.activeCampaignId = null;
+        let unsubscribeSnapshot = null;
+
+        window.saveDB = async function(skipCloud = false) {
+            localStorage.setItem('gears_desert_nexus', JSON.stringify(window.db));
+            
+            if (window.activeCampaignId && !skipCloud) {
+                const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+                if (camp) {
+                    try {
+                        await setDoc(doc(dbFirebase, "campanhas", window.activeCampaignId), camp);
+                    } catch (error) {
+                        console.error("[ERRO CRÍTICO] Falha ao sincronizar com o Firebase:", error);
+                    }
+                }
+            }
+        };
+
+        window.switchTab = function(tabId, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        };
+
+        // ==========================================================================
+        // 3. AUTENTICAÇÃO E LOBBY (CRIAR E ENTRAR EM SINAIS)
+        // ==========================================================================
+        window.authenticateUser = function() {
+            const nameInput = document.getElementById('auth_username');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if (!name) return alert("Erro: Identificação obrigatória.");
+            
+            window.db.currentUser = name;
             window.saveDB(true);
-            toggleModal('modal-create');
-            window.renderLobbyGrid();
-            alert(`Sinal Fundado! O ID de conexão é: ${newCamp.id}`);
-        } catch(error) {
-            console.error(error);
-            alert("Erro ao criar campanha na nuvem. Verifique sua conexão.");
-        }
-    };
+            location.reload();
+        };
 
-    window.loadCharactersForJoin = function() {
-        const select = document.getElementById('join_character_select');
-        const warning = document.getElementById('join_warning');
-        const btnSync = document.getElementById('btn_sync_join');
-        if (!select) return;
-        
-        select.innerHTML = "";
+        window.generateHash = function() { 
+            return 'GEAR-' + Math.random().toString(36).substr(2, 6).toUpperCase(); 
+        };
 
-        let localFichas = localStorage.getItem('gears_desert_db');
-        if(localFichas) {
-            let fichasDB = JSON.parse(localFichas);
-            if(fichasDB.characters && fichasDB.characters.length > 0) {
-                if(warning) warning.style.display = "none";
-                if(btnSync) btnSync.disabled = false;
-                
-                fichasDB.characters.forEach(char => {
-                    let opt = document.createElement('option');
-                    opt.value = char.id;
-                    opt.textContent = char.bio.name || "Gear Sem Nome";
-                    opt.dataset.hp = char.status.hp_cur || 20;
-                    opt.dataset.hpmax = char.status.hp_max || 20;
-                    opt.dataset.def = char.status.def_cur || 20;
-                    opt.dataset.ins = char.status.ins_cur || 0;
-                    select.appendChild(opt);
-                });
+        window.renderLobbyGrid = function() {
+            const grid = document.getElementById('lobby_grid');
+            if (!grid) return;
+            grid.innerHTML = "";
+            
+            const myCampaigns = window.db.campaigns.filter(c => 
+                c.master === window.db.currentUser || 
+                c.players.some(p => p.owner === window.db.currentUser)
+            );
+
+            if (myCampaigns.length === 0) {
+                grid.innerHTML = "<span style='color: var(--text-muted); font-size: 0.8rem;'>[ NENHUMA CONEXÃO ESTABELECIDA NO NEXUS. ]</span>";
                 return;
             }
-        }
-        
-        if(warning) warning.style.display = "block";
-        if(btnSync) btnSync.disabled = true;
-        select.innerHTML = '<option value="">[Nenhuma Ficha Disponível]</option>';
-    };
 
-    window.joinCampaign = async function() {
-        const idInput = document.getElementById('join_camp_id');
-        const targetId = idInput ? idInput.value.trim().toUpperCase() : "";
-        const charSelect = document.getElementById('join_character_select');
-        
-        if (!targetId || !charSelect || !charSelect.value) return;
+            myCampaigns.forEach(camp => {
+                const isMaster = camp.master === window.db.currentUser;
+                const roleText = isMaster ? "Mestre" : "Jogador";
+                const roleClass = isMaster ? "role-mestre" : "role-jogador";
 
-        try {
-            const docSnap = await getDoc(doc(dbFirebase, "campanhas", targetId));
-            if (!docSnap.exists()) return alert("SINAL INEXISTENTE. Verifique o ID de Conexão.");
-
-            let camp = docSnap.data();
-
-            if (camp.master === window.db.currentUser || camp.players.some(p => p.owner === window.db.currentUser)) {
-                return alert("Você já possui vínculo de mesa ativa com este sinal.");
-            }
-
-            const selectedOption = charSelect.options[charSelect.selectedIndex];
-            
-            camp.players.push({
-                owner: window.db.currentUser,
-                charId: charSelect.value,
-                name: selectedOption.textContent,
-                hp: parseInt(selectedOption.dataset.hp),
-                hp_max: parseInt(selectedOption.dataset.hpmax),
-                def: parseInt(selectedOption.dataset.def),
-                ins: parseInt(selectedOption.dataset.ins)
+                const card = document.createElement('div');
+                card.className = "campaign-card";
+                card.innerHTML = `
+                    <div class="campaign-card-header">
+                        <strong style="color: #fff;">${camp.name}</strong>
+                        <span class="role-badge ${roleClass}">${roleText}</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">[ID de Conexão]: <span style="color:var(--text-base);">${camp.id}</span></div>
+                    <button class="btn" style="width:100%" onclick="enterCampaign('${camp.id}')">Acessar Painel</button>
+                `;
+                grid.appendChild(card);
             });
-            
-            camp.logs.push(`[SISTEMA] O Gear [${selectedOption.textContent}] (${window.db.currentUser}) sintonizou no canal da mesa.`);
-            
-            window.db.campaigns = window.db.campaigns.filter(c => c.id !== targetId);
-            window.db.campaigns.push(camp);
-            
-            await setDoc(doc(dbFirebase, "campanhas", targetId), camp);
-            window.saveDB(true);
+        };
 
-            toggleModal('modal-join');
-            window.renderLobbyGrid();
-            alert("Conexão bem-sucedida! Acesse o painel pelo Lobby.");
-        } catch(error) {
-            console.error(error);
-            alert("Erro crítico ao tentar conectar à nuvem.");
-        }
-    };
+        window.createCampaign = async function() {
+            const nameInput = document.getElementById('create_camp_name');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if (!name) return alert("Erro: Defina a Designação da Campanha.");
 
-    // ==========================================================================
-    // 4. MOTOR DE SINCRONIZAÇÃO EM TEMPO REAL (ONSNAPSHOT)
-    // ==========================================================================
-    window.enterCampaign = function(id) {
-        window.activeCampaignId = id;
-        const camp = window.db.campaigns.find(c => c.id === id);
-        if (!camp) return;
-        
-        if (camp.master === window.db.currentUser) {
-            switchView('view-master');
-            document.getElementById('master_camp_name').textContent = camp.name;
-            document.getElementById('master_camp_id').textContent = camp.id;
-        } else {
-            switchView('view-player');
-        }
+            const newCamp = {
+                id: window.generateHash(),
+                name: name,
+                master: window.db.currentUser,
+                geaLevel: 0,
+                instabilityStatus: "Estável",
+                logs: [`[SISTEMA] Conexão Matriz estabelecida. Campanha fundada por ${window.db.currentUser}.`],
+                combatTracker: { activeIndex: -1, entities: [] },
+                players: [],
+                masterNotes: "", loreNotes: "", factionNotes: "",
+                bestiary: [], armory: []
+            };
 
-        // Limpa ouvintes antigos para evitar vazamento de memória
-        if (unsubscribeSnapshot) unsubscribeSnapshot();
-        
-        // Ativa escuta em tempo real do Firebase Firestore
-        unsubscribeSnapshot = onSnapshot(doc(dbFirebase, "campanhas", id), (docSnapshot) => {
-            if (docSnapshot.exists()) {
-                const cloudData = docSnapshot.data();
-                const idx = window.db.campaigns.findIndex(c => c.id === id);
-                if (idx !== -1) {
-                    window.db.campaigns[idx] = cloudData;
-                } else {
-                    window.db.campaigns.push(cloudData);
+            window.db.campaigns.push(newCamp);
+            try {
+                await setDoc(doc(dbFirebase, "campanhas", newCamp.id), newCamp);
+                window.saveDB(true);
+                toggleModal('modal-create');
+                window.renderLobbyGrid();
+                alert(`Sinal Fundado! O ID de conexão é: ${newCamp.id}`);
+            } catch(error) {
+                console.error(error);
+                alert("Erro ao criar campanha na nuvem. Verifique sua conexão.");
+            }
+        };
+
+        window.loadCharactersForJoin = function() {
+            const select = document.getElementById('join_character_select');
+            const warning = document.getElementById('join_warning');
+            const btnSync = document.getElementById('btn_sync_join');
+            if (!select) return;
+            
+            select.innerHTML = "";
+
+            let localFichas = localStorage.getItem('gears_desert_db');
+            if(localFichas) {
+                let fichasDB = JSON.parse(localFichas);
+                if(fichasDB.characters && fichasDB.characters.length > 0) {
+                    if(warning) warning.style.display = "none";
+                    if(btnSync) btnSync.disabled = false;
+                    
+                    fichasDB.characters.forEach(char => {
+                        let opt = document.createElement('option');
+                        opt.value = char.id;
+                        opt.textContent = char.bio.name || "Gear Sem Nome";
+                        opt.dataset.hp = char.status.hp_cur || 20;
+                        opt.dataset.hpmax = char.status.hp_max || 20;
+                        opt.dataset.def = char.status.def_cur || 20;
+                        opt.dataset.ins = char.status.ins_cur || 0;
+                        select.appendChild(opt);
+                    });
+                    return;
                 }
-                window.saveDB(true); // Atualiza localStorage silenciosamente sem loop na nuvem
-                window.syncDashboard(cloudData); // Renderiza interface com dados fresquinhos
-            } else {
-                alert("O Sinal desta campanha foi perdido ou apagado pelo mestre.");
-                window.leaveDashboard();
             }
-        }, (error) => {
-            console.error("Erro na sincronização em tempo real:", error);
-        });
-    };
+            
+            if(warning) warning.style.display = "block";
+            if(btnSync) btnSync.disabled = true;
+            select.innerHTML = '<option value="">[Nenhuma Ficha Disponível]</option>';
+        };
 
-    window.leaveDashboard = function() {
-        if (unsubscribeSnapshot) {
-            unsubscribeSnapshot();
-            unsubscribeSnapshot = null;
-        }
+        window.joinCampaign = async function() {
+            const idInput = document.getElementById('join_camp_id');
+            const targetId = idInput ? idInput.value.trim().toUpperCase() : "";
+            const charSelect = document.getElementById('join_character_select');
+            
+            if (!targetId || !charSelect || !charSelect.value) return;
+
+            try {
+                const docSnap = await getDoc(doc(dbFirebase, "campanhas", targetId));
+                if (!docSnap.exists()) return alert("SINAL INEXISTENTE. Verifique o ID de Conexão.");
+
+                let camp = docSnap.data();
+
+                if (camp.master === window.db.currentUser || camp.players.some(p => p.owner === window.db.currentUser)) {
+                    return alert("Você já possui vínculo de mesa ativa com este sinal.");
+                }
+
+                const selectedOption = charSelect.options[charSelect.selectedIndex];
+                
+                camp.players.push({
+                    owner: window.db.currentUser,
+                    charId: charSelect.value,
+                    name: selectedOption.textContent,
+                    hp: parseInt(selectedOption.dataset.hp),
+                    hp_max: parseInt(selectedOption.dataset.hpmax),
+                    def: parseInt(selectedOption.dataset.def),
+                    ins: parseInt(selectedOption.dataset.ins)
+                });
+                
+                camp.logs.push(`[SISTEMA] O Gear [${selectedOption.textContent}] (${window.db.currentUser}) sintonizou no canal da mesa.`);
+                
+                window.db.campaigns = window.db.campaigns.filter(c => c.id !== targetId);
+                window.db.campaigns.push(camp);
+                
+                await setDoc(doc(dbFirebase, "campanhas", targetId), camp);
+                window.saveDB(true);
+
+                toggleModal('modal-join');
+                window.renderLobbyGrid();
+                alert("Conexão bem-sucedida! Acesse o painel pelo Lobby.");
+            } catch(error) {
+                console.error(error);
+                alert("Erro crítico ao tentar conectar à nuvem.");
+            }
+        };
+
+        // ==========================================================================
+        // 4. MOTOR DE SINCRONIZAÇÃO EM TEMPO REAL (ONSNAPSHOT)
+        // ==========================================================================
+        window.enterCampaign = function(id) {
+            window.activeCampaignId = id;
+            const camp = window.db.campaigns.find(c => c.id === id);
+            if (!camp) return;
+            
+            if (camp.master === window.db.currentUser) {
+                switchView('view-master');
+                document.getElementById('master_camp_name').textContent = camp.name;
+                document.getElementById('master_camp_id').textContent = camp.id;
+            } else {
+                switchView('view-player');
+            }
+
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+            
+            unsubscribeSnapshot = onSnapshot(doc(dbFirebase, "campanhas", id), (docSnapshot) => {
+                if (docSnapshot.exists()) {
+                    const cloudData = docSnapshot.data();
+                    const idx = window.db.campaigns.findIndex(c => c.id === id);
+                    if (idx !== -1) {
+                        window.db.campaigns[idx] = cloudData;
+                    } else {
+                        window.db.campaigns.push(cloudData);
+                    }
+                    window.saveDB(true); 
+                    window.syncDashboard(cloudData); 
+                } else {
+                    alert("O Sinal desta campanha foi perdido ou apagado pelo mestre.");
+                    window.leaveDashboard();
+                }
+            }, (error) => {
+                console.error("Erro na sincronização em tempo real:", error);
+            });
+        };
+
+        window.leaveDashboard = function() {
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+                unsubscribeSnapshot = null;
+            }
+            window.activeCampaignId = null;
+            switchView('view-lobby');
+            
+            const mPanel = document.getElementById('master_main_panel');
+            if (mPanel) mPanel.className = "terminal-panel";
+            
+            const pHeader = document.getElementById('player_env_header');
+            if (pHeader) pHeader.className = "dashboard-header";
+        };
+
+        window.copyId = function() {
+            if (!window.activeCampaignId) return;
+            navigator.clipboard.writeText(window.activeCampaignId);
+            alert("ID de Conexão copiado para a área de transferência.");
+        };
+
+        window.syncDashboard = function(camp) {
+            if (!camp) {
+                camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+                if (!camp) return window.leaveDashboard();
+            }
+
+            if (camp.master === window.db.currentUser) {
+                window.renderMasterDashboard(camp);
+            } else {
+                window.renderPlayerDashboard(camp);
+            }
+        };
+
+        window.syncBackToFichasLocal = function(charId, stat, value) {
+            let localFichas = localStorage.getItem('gears_desert_db');
+            if(localFichas) {
+                let fichasDB = JSON.parse(localFichas);
+                let char = fichasDB.characters.find(c => c.id === charId);
+                if(char) {
+                    if(stat === 'hp') char.status.hp_cur = value;
+                    if(stat === 'def') char.status.def_cur = value;
+                    if(stat === 'ins') char.status.ins_cur = value;
+                    localStorage.setItem('gears_desert_db', JSON.stringify(fichasDB));
+                }
+            }
+        };
+
+        // ==========================================================================
+        // 5. RENDERIZAÇÃO E LÓGICA DO MESTRE
+        // ==========================================================================
+        window.renderMasterDashboard = function(camp) {
+            if(document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+                const checkedGea = document.querySelector(`input[name="gea"][value="${camp.geaLevel}"]`);
+                if (checkedGea) checkedGea.checked = true;
+                
+                const statusInput = document.getElementById('master_flux_status');
+                if (statusInput) statusInput.value = camp.instabilityStatus;
+                
+                const loreNotes = document.getElementById('master_lore_notes');
+                if (loreNotes) loreNotes.value = camp.loreNotes || "";
+                
+                const factionNotes = document.getElementById('master_faction_notes');
+                if (factionNotes) factionNotes.value = camp.factionNotes || "";
+                
+                const secretNotes = document.getElementById('master_secret_notes');
+                if (secretNotes) secretNotes.value = camp.masterNotes || "";
+            }
+
+            const panel = document.getElementById('master_main_panel');
+            if (panel) {
+                panel.className = "terminal-panel";
+                if (camp.instabilityStatus === "Crítico") panel.classList.add("env-critical");
+                if (camp.instabilityStatus === "Calamidade") panel.classList.add("env-calamity");
+            }
+
+            const pGrid = document.getElementById('master_players_grid');
+            if (pGrid) {
+                pGrid.innerHTML = camp.players.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Sem jogadores conectados.</span>" : "";
+                camp.players.forEach((p, idx) => {
+                    pGrid.innerHTML += `
+                        <div class="entity-card">
+                            <div class="entity-card-header">
+                                <span>${p.name}</span>
+                                <span style="font-size:0.7rem; color:var(--text-muted); font-weight:normal;">[${p.owner}]</span>
+                            </div>
+                            <div class="vital-row">
+                                <span>HP</span>
+                                <div class="stepper">
+                                    <button onclick="updatePlayerVital(${idx}, 'hp', -1)">-</button>
+                                    <input type="text" value="${p.hp}" readonly>
+                                    <button onclick="updatePlayerVital(${idx}, 'hp', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="vital-row">
+                                <span>Defesa</span>
+                                <div class="stepper">
+                                    <button onclick="updatePlayerVital(${idx}, 'def', -1)">-</button>
+                                    <input type="text" value="${p.def}" readonly>
+                                    <button onclick="updatePlayerVital(${idx}, 'def', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="vital-row">
+                                <span style="color:var(--flux-purple)">Insanidade</span>
+                                <div class="stepper">
+                                    <button onclick="updatePlayerVital(${idx}, 'ins', -5)">-</button>
+                                    <input type="text" value="${p.ins}" readonly>
+                                    <button onclick="updatePlayerVital(${idx}, 'ins', 5)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            const bGrid = document.getElementById('master_bestiary_grid');
+            if (bGrid) {
+                bGrid.innerHTML = camp.bestiary.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Bestiário vazio.</span>" : "";
+                camp.bestiary.forEach((b, idx) => {
+                    const color = b.type === 'NPC' ? 'var(--success-green)' : 'var(--alert-red)';
+                    bGrid.innerHTML += `
+                        <div class="entity-card">
+                            <div class="entity-card-header" style="color:${color}">
+                                <span>${b.name} [${b.type}]</span>
+                                <button style="background:none; border:none; color:var(--alert-red); cursor:pointer;" onclick="deleteEntity('bestiary', ${idx})">✕</button>
+                            </div>
+                            <div class="vital-row">
+                                <span>HP Tracker</span>
+                                <div class="stepper">
+                                    <button onclick="updateBestiaryHp(${idx}, -1)">-</button>
+                                    <input type="text" value="${b.hp}" readonly>
+                                    <button onclick="updateBestiaryHp(${idx}, 1)">+</button>
+                                </div>
+                            </div>
+                            <div style="font-size:0.75rem; margin-top:5px; color:var(--text-muted);">Def: ${b.def} | Notas: ${b.notes}</div>
+                            <button class="btn btn-flux" style="width:100%; margin-top:10px; padding:4px; font-size:0.7rem;" onclick="sendToInitiative('${b.name}')">Jogar na Iniciativa</button>
+                        </div>
+                    `;
+                });
+            }
+
+            const aGrid = document.getElementById('master_arsenal_grid');
+            if (aGrid) {
+                aGrid.innerHTML = camp.armory.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Cofre vazio.</span>" : "";
+                camp.armory.forEach((a, idx) => {
+                    aGrid.innerHTML += `
+                        <div class="entity-card">
+                            <div class="entity-card-header">
+                                <span>${a.name}</span>
+                                <button style="background:none; border:none; color:var(--alert-red); cursor:pointer;" onclick="deleteEntity('armory', ${idx})">✕</button>
+                            </div>
+                            <div style="font-size:0.75rem; margin-top:5px; color:var(--text-base);">Tipo: [${a.type}]</div>
+                            <div style="font-size:0.75rem; margin-top:5px; color:var(--text-muted);">Registro: ${a.notes}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            window.renderInitiativeList(camp, 'master_init_list', true);
+            window.renderLogs(camp, 'master_log_box');
+        };
+
+        window.updateMasterEnv = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const selectedGea = document.querySelector('input[name="gea"]:checked');
+            camp.geaLevel = selectedGea ? parseInt(selectedGea.value) : 0;
+            
+            const fluxStatus = document.getElementById('master_flux_status');
+            if (fluxStatus) camp.instabilityStatus = fluxStatus.value;
+            
+            window.saveDB();
+        };
+
+        window.saveTextAreas = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            camp.loreNotes = document.getElementById('master_lore_notes').value;
+            camp.factionNotes = document.getElementById('master_faction_notes').value;
+            camp.masterNotes = document.getElementById('master_secret_notes').value;
+            
+            window.saveDB();
+        };
+
+        window.updatePlayerVital = function(pIndex, stat, modifier) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp.players[pIndex]) return;
+            
+            let val = camp.players[pIndex][stat] + modifier;
+            if (val < 0) val = 0;
+            if (stat === 'ins' && val > 100) val = 100; 
+            
+            camp.players[pIndex][stat] = val;
+            
+            if(camp.players[pIndex].owner === window.db.currentUser) {
+                window.syncBackToFichasLocal(camp.players[pIndex].charId, stat, val);
+            }
+            
+            window.saveDB();
+        };
+
+        window.addBestiaryEntry = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const nameInput = document.getElementById('bestiary_name');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if(!name) return;
+            
+            camp.bestiary.push({
+                name: name, 
+                type: document.getElementById('bestiary_type').value,
+                hp: parseInt(document.getElementById('bestiary_hp').value) || 0,
+                def: parseInt(document.getElementById('bestiary_def').value) || 0,
+                notes: document.getElementById('bestiary_notes').value
+            });
+            
+            nameInput.value = ""; 
+            document.getElementById('bestiary_notes').value = "";
+            window.saveDB();
+        };
+
+        window.updateBestiaryHp = function(idx, modifier) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp.bestiary[idx]) return;
+            
+            camp.bestiary[idx].hp += modifier;
+            window.saveDB();
+        };
+
+        window.addArsenalEntry = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const nameInput = document.getElementById('arsenal_name');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if(!name) return;
+            
+            camp.armory.push({
+                name: name, 
+                type: document.getElementById('arsenal_type').value,
+                notes: document.getElementById('arsenal_notes').value
+            });
+            
+            nameInput.value = ""; 
+            document.getElementById('arsenal_notes').value = "";
+            window.saveDB();
+        };
+
+        window.deleteEntity = function(arrayName, idx) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp[arrayName]) return;
+            
+            camp[arrayName].splice(idx, 1);
+            window.saveDB();
+        };
+
+        window.sendToInitiative = function(name) {
+            const inputName = document.getElementById('init_name');
+            const inputVal = document.getElementById('init_val');
+            if (inputName && inputVal) {
+                inputName.value = name;
+                inputVal.focus();
+            }
+        };
+
+        // ==========================================================================
+        // 6. RENDERIZAÇÃO E LÓGICA DO JOGADOR
+        // ==========================================================================
+        window.renderPlayerDashboard = function(camp) {
+            const campName = document.getElementById('player_camp_name');
+            if (campName) campName.textContent = camp.name;
+            
+            const geaVal = document.getElementById('player_gea_val');
+            if (geaVal) geaVal.textContent = camp.geaLevel;
+            
+            const fluxVal = document.getElementById('player_flux_val');
+            if (fluxVal) fluxVal.textContent = camp.instabilityStatus;
+
+            const header = document.getElementById('player_env_header');
+            if (header) {
+                header.className = "dashboard-header";
+                if (camp.instabilityStatus === "Crítico") header.classList.add("env-critical");
+                if (camp.instabilityStatus === "Calamidade") header.classList.add("env-calamity");
+            }
+
+            const myIndex = camp.players.findIndex(p => p.owner === window.db.currentUser);
+            const myPlayerObj = camp.players[myIndex];
+            
+            const vBox = document.getElementById('player_vitals_display');
+            if (vBox && myPlayerObj) {
+                vBox.innerHTML = `
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--success-green);">
+                        <label>Integridade Física (HP)</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'hp', -1)">-</button>
+                            <input type="text" value="${myPlayerObj.hp}" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'hp', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--text-base);">
+                        <label>Defesa Cinética</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'def', -1)">-</button>
+                            <input type="text" value="${myPlayerObj.def}" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'def', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--flux-purple);">
+                        <label>Mente (Insanidade)</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'ins', -5)">-</button>
+                            <input type="text" value="${myPlayerObj.ins}" style="color:${myPlayerObj.ins > 60 ? 'var(--alert-red)' : '#fff'};" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'ins', 5)">+</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            window.renderInitiativeList(camp, 'player_init_list', false);
+            window.renderLogs(camp, 'player_log_box');
+        };
+
+        // ==========================================================================
+        // 7. TRACKER DE COMBATE / INICIATIVA
+        // ==========================================================================
+        window.addInitiative = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const nameInput = document.getElementById('init_name');
+            const valInput = document.getElementById('init_val');
+            
+            const name = nameInput ? nameInput.value.trim() : "";
+            const val = valInput ? parseInt(valInput.value) || 0 : 0;
+            
+            if (!name) return;
+
+            camp.combatTracker.entities.push({ name: name, value: val, tempHp: 0 });
+            camp.combatTracker.entities.sort((a,b) => b.value - a.value);
+            
+            if (nameInput) nameInput.value = ""; 
+            if (valInput) valInput.value = "";
+            
+            window.saveDB();
+        };
+
+        window.removeInitiative = function(index) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            camp.combatTracker.entities.splice(index, 1);
+            if (camp.combatTracker.activeIndex >= camp.combatTracker.entities.length) {
+                camp.combatTracker.activeIndex = 0;
+            }
+            window.saveDB();
+        };
+
+        window.nextTurn = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || camp.combatTracker.entities.length === 0) return;
+            
+            camp.combatTracker.activeIndex++;
+            if (camp.combatTracker.activeIndex >= camp.combatTracker.entities.length) {
+                camp.combatTracker.activeIndex = 0;
+            }
+            window.saveDB();
+        };
+
+        window.updateInitHp = function(index, mod) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp.combatTracker.entities[index]) return;
+            
+            camp.combatTracker.entities[index].tempHp += mod;
+            window.saveDB();
+        };
+
+        window.renderInitiativeList = function(camp, containerId, isMaster) {
+            const box = document.getElementById(containerId);
+            if (!box) return;
+            
+            if (camp.combatTracker.entities.length === 0) { 
+                box.innerHTML = "<span style='font-size:0.75rem; color:var(--text-muted);'>Nenhum radar de combate ativo.</span>"; 
+                return; 
+            }
+
+            box.innerHTML = camp.combatTracker.entities.map((ent, idx) => {
+                const isActive = idx === camp.combatTracker.activeIndex ? "active-turn" : "";
+                let html = `<div class="init-row ${isActive}">
+                    <div style="display:flex; flex-direction:column;">
+                        <strong style="color:#fff;">${ent.name}</strong>
+                        <span style="font-size:0.7rem; color:var(--success-green);">[Mod: ${ent.value}]</span>
+                    </div>`;
+
+                if (isMaster) {
+                    html += `
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div class="stepper" style="transform: scale(0.85); transform-origin: right;">
+                            <button onclick="updateInitHp(${idx}, -1)">-</button>
+                            <input type="text" value="${ent.tempHp}" readonly>
+                            <button onclick="updateInitHp(${idx}, 1)">+</button>
+                        </div>
+                        <button class="btn btn-danger" style="padding:4px; font-size:0.7rem;" onclick="removeInitiative(${idx})">X</button>
+                    </div>`;
+                } else {
+                    html += `<div style="font-size:0.8rem; color:var(--text-muted);">HP Track: ${ent.tempHp}</div>`;
+                }
+                html += `</div>`;
+                return html;
+            }).join("");
+        };
+
+        // ==========================================================================
+        // 8. ROLAGEM DE DADOS E REGISTROS DE SISTEMA (LOGS)
+        // ==========================================================================
+        window.rollDiceGlobal = function(faces) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+
+            const result = Math.floor(Math.random() * faces) + 1;
+            const time = new Date().toLocaleTimeString('pt-BR');
+            let logStr = `<span class="log-timestamp">[${time}]</span> <span style="color:#fff;">[${window.db.currentUser}]</span> rolou D${faces} -> <strong style="color:var(--text-base);">${result}</strong>`;
+
+            if (faces === 20 && result === 20) {
+                logStr += ` <span class="log-crit">>> SINAL CRÍTICO <<</span>`;
+            } else if (faces === 20 && result === 1) {
+                logStr += ` <span style="color: var(--alert-red); font-weight: bold;">>> FALHA CRÍTICA <<</span>`;
+            }
+            
+            camp.logs.push(logStr);
+            
+            if (camp.logs.length > 50) {
+                camp.logs.shift(); 
+            }
+            
+            window.saveDB();
+        };
+
+        // ==========================================================================
+        // 8.5 INTERFACE DE CONVERSA EM TEMPO REAL (CHAT MOTOR)
+        // ==========================================================================
+        window.sendChatMessage = function(senderType = 'player') {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+
+            const inputId = senderType === 'master' ? 'chat_input_master' : 'chat_input';
+            const input = document.getElementById(inputId);
+            const msg = input ? input.value.trim() : "";
+            if (!msg) return;
+
+            const time = new Date().toLocaleTimeString('pt-BR');
+            const nameColor = senderType === 'master' ? 'var(--alert-red)' : 'var(--success-green)';
+            let chatStr = `<span class="log-timestamp">[${time}]</span> <strong style="color:${nameColor}">[${window.db.currentUser}]:</strong> <span style="color:#fff;">${msg}</span>`;
+
+            camp.logs.push(chatStr);
+            
+            if (camp.logs.length > 50) camp.logs.shift();
+
+            input.value = ""; 
+            window.saveDB();  
+        };
+
+        window.renderLogs = function(camp, containerId) {
+            const box = document.getElementById(containerId);
+            if (!box) return;
+            
+            box.innerHTML = camp.logs.map(l => `<div class="log-entry">${l}</div>`).join("");
+            box.scrollTop = box.scrollHeight;
+        };
+
+        // ==========================================================================
+        // 9. INICIALIZAÇÃO
+        // ==========================================================================
+        window.onload = function() {
+            window.renderLobbyGrid();
+        };
+    </script>
+</body>
+</html>
+        <script type="module">
+        // ==========================================================================
+        // 1. CONFIGURAÇÃO FIREBASE E IMPORTAÇÕES (NÚCLEO)
+        // ==========================================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC9a9k39aToZcZ5_zwWqNM_4vFXELoYoTI",
+            authDomain: "gears-of-desert.firebaseapp.com",
+            projectId: "gears-of-desert",
+            storageBucket: "gears-of-desert.firebasestorage.app",
+            messagingSenderId: "860761444217",
+            appId: "1:860761444217:web:62107c127835d8583aa9a8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const dbFirebase = getFirestore(app);
+
+        // ==========================================================================
+        // 2. ESTADO GLOBAL E GERENCIAMENTO DE DADOS (LOCAL E NUVEM)
+        // ==========================================================================
+        window.db = JSON.parse(localStorage.getItem('gears_desert_nexus')) || { campaigns: [], currentUser: null };
         window.activeCampaignId = null;
-        switchView('view-lobby');
-        
-        const mPanel = document.getElementById('master_main_panel');
-        if (mPanel) mPanel.className = "terminal-panel";
-        
-        const pHeader = document.getElementById('player_env_header');
-        if (pHeader) pHeader.className = "dashboard-header";
-    };
+        let unsubscribeSnapshot = null;
 
-    window.copyId = function() {
-        if (!window.activeCampaignId) return;
-        navigator.clipboard.writeText(window.activeCampaignId);
-        alert("ID de Conexão copiado para a área de transferência.");
-    };
-
-    window.syncDashboard = function(camp) {
-        if (!camp) {
-            camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-            if (!camp) return window.leaveDashboard();
-        }
-
-        if (camp.master === window.db.currentUser) {
-            window.renderMasterDashboard(camp);
-        } else {
-            window.renderPlayerDashboard(camp);
-        }
-    };
-
-    window.syncBackToFichasLocal = function(charId, stat, value) {
-        let localFichas = localStorage.getItem('gears_desert_db');
-        if(localFichas) {
-            let fichasDB = JSON.parse(localFichas);
-            let char = fichasDB.characters.find(c => c.id === charId);
-            if(char) {
-                if(stat === 'hp') char.status.hp_cur = value;
-                if(stat === 'def') char.status.def_cur = value;
-                if(stat === 'ins') char.status.ins_cur = value;
-                localStorage.setItem('gears_desert_db', JSON.stringify(fichasDB));
+        window.saveDB = async function(skipCloud = false) {
+            localStorage.setItem('gears_desert_nexus', JSON.stringify(window.db));
+            
+            if (window.activeCampaignId && !skipCloud) {
+                const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+                if (camp) {
+                    try {
+                        await setDoc(doc(dbFirebase, "campanhas", window.activeCampaignId), camp);
+                    } catch (error) {
+                        console.error("[ERRO CRÍTICO] Falha ao sincronizar com o Firebase:", error);
+                    }
+                }
             }
-        }
-    };
+        };
 
-    // ==========================================================================
-    // 5. RENDERIZAÇÃO E LÓGICA DO MESTRE
-    // ==========================================================================
-    window.renderMasterDashboard = function(camp) {
-        // Preserva inputs que estão sendo digitados
-        if(document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
-            const checkedGea = document.querySelector(`input[name="gea"][value="${camp.geaLevel}"]`);
-            if (checkedGea) checkedGea.checked = true;
-            
-            const statusInput = document.getElementById('master_flux_status');
-            if (statusInput) statusInput.value = camp.instabilityStatus;
-            
-            const loreNotes = document.getElementById('master_lore_notes');
-            if (loreNotes) loreNotes.value = camp.loreNotes || "";
-            
-            const factionNotes = document.getElementById('master_faction_notes');
-            if (factionNotes) factionNotes.value = camp.factionNotes || "";
-            
-            const secretNotes = document.getElementById('master_secret_notes');
-            if (secretNotes) secretNotes.value = camp.masterNotes || "";
-        }
+        window.switchTab = function(tabId, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        };
 
-        const panel = document.getElementById('master_main_panel');
-        if (panel) {
-            panel.className = "terminal-panel";
-            if (camp.instabilityStatus === "Crítico") panel.classList.add("env-critical");
-            if (camp.instabilityStatus === "Calamidade") panel.classList.add("env-calamity");
-        }
+        // ==========================================================================
+        // 3. AUTENTICAÇÃO E LOBBY (CRIAR E ENTRAR EM SINAIS)
+        // ==========================================================================
+        window.authenticateUser = function() {
+            const nameInput = document.getElementById('auth_username');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if (!name) return alert("Erro: Identificação obrigatória.");
+            
+            window.db.currentUser = name;
+            window.saveDB(true);
+            location.reload();
+        };
 
-        const pGrid = document.getElementById('master_players_grid');
-        if (pGrid) {
-            pGrid.innerHTML = camp.players.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Sem jogadores conectados.</span>" : "";
-            camp.players.forEach((p, idx) => {
-                pGrid.innerHTML += `
-                    <div class="entity-card">
-                        <div class="entity-card-header">
-                            <span>${p.name}</span>
-                            <span style="font-size:0.7rem; color:var(--text-muted); font-weight:normal;">[${p.owner}]</span>
-                        </div>
-                        <div class="vital-row">
-                            <span>HP</span>
-                            <div class="stepper">
-                                <button onclick="updatePlayerVital(${idx}, 'hp', -1)">-</button>
-                                <input type="text" value="${p.hp}" readonly>
-                                <button onclick="updatePlayerVital(${idx}, 'hp', 1)">+</button>
-                            </div>
-                        </div>
-                        <div class="vital-row">
-                            <span>Defesa</span>
-                            <div class="stepper">
-                                <button onclick="updatePlayerVital(${idx}, 'def', -1)">-</button>
-                                <input type="text" value="${p.def}" readonly>
-                                <button onclick="updatePlayerVital(${idx}, 'def', 1)">+</button>
-                            </div>
-                        </div>
-                        <div class="vital-row">
-                            <span style="color:var(--flux-purple)">Insanidade</span>
-                            <div class="stepper">
-                                <button onclick="updatePlayerVital(${idx}, 'ins', -5)">-</button>
-                                <input type="text" value="${p.ins}" readonly>
-                                <button onclick="updatePlayerVital(${idx}, 'ins', 5)">+</button>
-                            </div>
-                        </div>
+        window.generateHash = function() { 
+            return 'GEAR-' + Math.random().toString(36).substr(2, 6).toUpperCase(); 
+        };
+
+        window.renderLobbyGrid = function() {
+            const grid = document.getElementById('lobby_grid');
+            if (!grid) return;
+            grid.innerHTML = "";
+            
+            const myCampaigns = window.db.campaigns.filter(c => 
+                c.master === window.db.currentUser || 
+                c.players.some(p => p.owner === window.db.currentUser)
+            );
+
+            if (myCampaigns.length === 0) {
+                grid.innerHTML = "<span style='color: var(--text-muted); font-size: 0.8rem;'>[ NENHUMA CONEXÃO ESTABELECIDA NO NEXUS. ]</span>";
+                return;
+            }
+
+            myCampaigns.forEach(camp => {
+                const isMaster = camp.master === window.db.currentUser;
+                const roleText = isMaster ? "Mestre" : "Jogador";
+                const roleClass = isMaster ? "role-mestre" : "role-jogador";
+
+                const card = document.createElement('div');
+                card.className = "campaign-card";
+                card.innerHTML = `
+                    <div class="campaign-card-header">
+                        <strong style="color: #fff;">${camp.name}</strong>
+                        <span class="role-badge ${roleClass}">${roleText}</span>
                     </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">[ID de Conexão]: <span style="color:var(--text-base);">${camp.id}</span></div>
+                    <button class="btn" style="width:100%" onclick="enterCampaign('${camp.id}')">Acessar Painel</button>
                 `;
+                grid.appendChild(card);
             });
-        }
+        };
 
-        const bGrid = document.getElementById('master_bestiary_grid');
-        if (bGrid) {
-            bGrid.innerHTML = camp.bestiary.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Bestiário vazio.</span>" : "";
-            camp.bestiary.forEach((b, idx) => {
-                const color = b.type === 'NPC' ? 'var(--success-green)' : 'var(--alert-red)';
-                bGrid.innerHTML += `
-                    <div class="entity-card">
-                        <div class="entity-card-header" style="color:${color}">
-                            <span>${b.name} [${b.type}]</span>
-                            <button style="background:none; border:none; color:var(--alert-red); cursor:pointer;" onclick="deleteEntity('bestiary', ${idx})">✕</button>
-                        </div>
-                        <div class="vital-row">
-                            <span>HP Tracker</span>
-                            <div class="stepper">
-                                <button onclick="updateBestiaryHp(${idx}, -1)">-</button>
-                                <input type="text" value="${b.hp}" readonly>
-                                <button onclick="updateBestiaryHp(${idx}, 1)">+</button>
-                            </div>
-                        </div>
-                        <div style="font-size:0.75rem; margin-top:5px; color:var(--text-muted);">Def: ${b.def} | Notas: ${b.notes}</div>
-                        <button class="btn btn-flux" style="width:100%; margin-top:10px; padding:4px; font-size:0.7rem;" onclick="sendToInitiative('${b.name}')">Jogar na Iniciativa</button>
-                    </div>
-                `;
-            });
-        }
+        window.createCampaign = async function() {
+            const nameInput = document.getElementById('create_camp_name');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if (!name) return alert("Erro: Defina a Designação da Campanha.");
 
-        const aGrid = document.getElementById('master_arsenal_grid');
-        if (aGrid) {
-            aGrid.innerHTML = camp.armory.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Cofre vazio.</span>" : "";
-            camp.armory.forEach((a, idx) => {
-                aGrid.innerHTML += `
-                    <div class="entity-card">
-                        <div class="entity-card-header">
-                            <span>${a.name}</span>
-                            <button style="background:none; border:none; color:var(--alert-red); cursor:pointer;" onclick="deleteEntity('armory', ${idx})">✕</button>
-                        </div>
-                        <div style="font-size:0.75rem; margin-top:5px; color:var(--text-base);">Tipo: [${a.type}]</div>
-                        <div style="font-size:0.75rem; margin-top:5px; color:var(--text-muted);">Registro: ${a.notes}</div>
-                    </div>
-                `;
-            });
-        }
+            const newCamp = {
+                id: window.generateHash(),
+                name: name,
+                master: window.db.currentUser,
+                geaLevel: 0,
+                instabilityStatus: "Estável",
+                logs: [`[SISTEMA] Conexão Matriz estabelecida. Campanha fundada por ${window.db.currentUser}.`],
+                combatTracker: { activeIndex: -1, entities: [] },
+                players: [],
+                masterNotes: "", loreNotes: "", factionNotes: "",
+                bestiary: [], armory: []
+            };
 
-        window.renderInitiativeList(camp, 'master_init_list', true);
-        window.renderLogs(camp, 'master_log_box');
-    };
+            window.db.campaigns.push(newCamp);
+            try {
+                await setDoc(doc(dbFirebase, "campanhas", newCamp.id), newCamp);
+                window.saveDB(true);
+                toggleModal('modal-create');
+                window.renderLobbyGrid();
+                alert(`Sinal Fundado! O ID de conexão é: ${newCamp.id}`);
+            } catch(error) {
+                console.error(error);
+                alert("Erro ao criar campanha na nuvem. Verifique sua conexão.");
+            }
+        };
 
-    window.updateMasterEnv = function() {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp) return;
-        
-        const selectedGea = document.querySelector('input[name="gea"]:checked');
-        camp.geaLevel = selectedGea ? parseInt(selectedGea.value) : 0;
-        
-        const fluxStatus = document.getElementById('master_flux_status');
-        if (fluxStatus) camp.instabilityStatus = fluxStatus.value;
-        
-        window.saveDB();
-    };
+        window.loadCharactersForJoin = function() {
+            const select = document.getElementById('join_character_select');
+            const warning = document.getElementById('join_warning');
+            const btnSync = document.getElementById('btn_sync_join');
+            if (!select) return;
+            
+            select.innerHTML = "";
 
-    window.saveTextAreas = function() {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp) return;
-        
-        camp.loreNotes = document.getElementById('master_lore_notes').value;
-        camp.factionNotes = document.getElementById('master_faction_notes').value;
-        camp.masterNotes = document.getElementById('master_secret_notes').value;
-        
-        window.saveDB();
-    };
+            let localFichas = localStorage.getItem('gears_desert_db');
+            if(localFichas) {
+                let fichasDB = JSON.parse(localFichas);
+                if(fichasDB.characters && fichasDB.characters.length > 0) {
+                    if(warning) warning.style.display = "none";
+                    if(btnSync) btnSync.disabled = false;
+                    
+                    fichasDB.characters.forEach(char => {
+                        let opt = document.createElement('option');
+                        opt.value = char.id;
+                        opt.textContent = char.bio.name || "Gear Sem Nome";
+                        opt.dataset.hp = char.status.hp_cur || 20;
+                        opt.dataset.hpmax = char.status.hp_max || 20;
+                        opt.dataset.def = char.status.def_cur || 20;
+                        opt.dataset.ins = char.status.ins_cur || 0;
+                        select.appendChild(opt);
+                    });
+                    return;
+                }
+            }
+            
+            if(warning) warning.style.display = "block";
+            if(btnSync) btnSync.disabled = true;
+            select.innerHTML = '<option value="">[Nenhuma Ficha Disponível]</option>';
+        };
 
-    window.updatePlayerVital = function(pIndex, stat, modifier) {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp || !camp.players[pIndex]) return;
-        
-        let val = camp.players[pIndex][stat] + modifier;
-        if (val < 0) val = 0;
-        if (stat === 'ins' && val > 100) val = 100; // Limite de insanidade
-        
-        camp.players[pIndex][stat] = val;
-        
-        // Atualiza na ficha local do próprio jogador que tomou dano (se ele for o dono da ficha no PC atual)
-        if(camp.players[pIndex].owner === window.db.currentUser) {
-            window.syncBackToFichasLocal(camp.players[pIndex].charId, stat, val);
-        }
-        
-        window.saveDB();
-    };
+        window.joinCampaign = async function() {
+            const idInput = document.getElementById('join_camp_id');
+            const targetId = idInput ? idInput.value.trim().toUpperCase() : "";
+            const charSelect = document.getElementById('join_character_select');
+            
+            if (!targetId || !charSelect || !charSelect.value) return;
 
-    window.addBestiaryEntry = function() {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp) return;
-        
-        const nameInput = document.getElementById('bestiary_name');
-        const name = nameInput ? nameInput.value.trim() : "";
-        if(!name) return;
-        
-        camp.bestiary.push({
-            name: name, 
-            type: document.getElementById('bestiary_type').value,
-            hp: parseInt(document.getElementById('bestiary_hp').value) || 0,
-            def: parseInt(document.getElementById('bestiary_def').value) || 0,
-            notes: document.getElementById('bestiary_notes').value
-        });
-        
-        nameInput.value = ""; 
-        document.getElementById('bestiary_notes').value = "";
-        window.saveDB();
-    };
+            try {
+                const docSnap = await getDoc(doc(dbFirebase, "campanhas", targetId));
+                if (!docSnap.exists()) return alert("SINAL INEXISTENTE. Verifique o ID de Conexão.");
 
-    window.updateBestiaryHp = function(idx, modifier) {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp || !camp.bestiary[idx]) return;
-        
-        camp.bestiary[idx].hp += modifier;
-        window.saveDB();
-    };
+                let camp = docSnap.data();
 
-    window.addArsenalEntry = function() {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp) return;
-        
-        const nameInput = document.getElementById('arsenal_name');
-        const name = nameInput ? nameInput.value.trim() : "";
-        if(!name) return;
-        
-        camp.armory.push({
-            name: name, 
-            type: document.getElementById('arsenal_type').value,
-            notes: document.getElementById('arsenal_notes').value
-        });
-        
-        nameInput.value = ""; 
-        document.getElementById('arsenal_notes').value = "";
-        window.saveDB();
-    };
+                if (camp.master === window.db.currentUser || camp.players.some(p => p.owner === window.db.currentUser)) {
+                    return alert("Você já possui vínculo de mesa ativa com este sinal.");
+                }
 
-    window.deleteEntity = function(arrayName, idx) {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp || !camp[arrayName]) return;
-        
-        camp[arrayName].splice(idx, 1);
-        window.saveDB();
-    };
+                const selectedOption = charSelect.options[charSelect.selectedIndex];
+                
+                camp.players.push({
+                    owner: window.db.currentUser,
+                    charId: charSelect.value,
+                    name: selectedOption.textContent,
+                    hp: parseInt(selectedOption.dataset.hp),
+                    hp_max: parseInt(selectedOption.dataset.hpmax),
+                    def: parseInt(selectedOption.dataset.def),
+                    ins: parseInt(selectedOption.dataset.ins)
+                });
+                
+                camp.logs.push(`[SISTEMA] O Gear [${selectedOption.textContent}] (${window.db.currentUser}) sintonizou no canal da mesa.`);
+                
+                window.db.campaigns = window.db.campaigns.filter(c => c.id !== targetId);
+                window.db.campaigns.push(camp);
+                
+                await setDoc(doc(dbFirebase, "campanhas", targetId), camp);
+                window.saveDB(true);
 
-    window.sendToInitiative = function(name) {
-        const inputName = document.getElementById('init_name');
-        const inputVal = document.getElementById('init_val');
-        if (inputName && inputVal) {
-            inputName.value = name;
-            inputVal.focus();
-        }
-    };
+                toggleModal('modal-join');
+                window.renderLobbyGrid();
+                alert("Conexão bem-sucedida! Acesse o painel pelo Lobby.");
+            } catch(error) {
+                console.error(error);
+                alert("Erro crítico ao tentar conectar à nuvem.");
+            }
+        };
 
-    // ==========================================================================
-    // 6. RENDERIZAÇÃO E LÓGICA DO JOGADOR
-    // ==========================================================================
-    window.renderPlayerDashboard = function(camp) {
-        const campName = document.getElementById('player_camp_name');
-        if (campName) campName.textContent = camp.name;
-        
-        const geaVal = document.getElementById('player_gea_val');
-        if (geaVal) geaVal.textContent = camp.geaLevel;
-        
-        const fluxVal = document.getElementById('player_flux_val');
-        if (fluxVal) fluxVal.textContent = camp.instabilityStatus;
-
-        const header = document.getElementById('player_env_header');
-        if (header) {
-            header.className = "dashboard-header";
-            if (camp.instabilityStatus === "Crítico") header.classList.add("env-critical");
-            if (camp.instabilityStatus === "Calamidade") header.classList.add("env-calamity");
-        }
-
-        const myIndex = camp.players.findIndex(p => p.owner === window.db.currentUser);
-        const myPlayerObj = camp.players[myIndex];
-        
-        const vBox = document.getElementById('player_vitals_display');
-        if (vBox && myPlayerObj) {
-            vBox.innerHTML = `
-                <div class="vital-stat" style="border-bottom: 2px solid var(--success-green);">
-                    <label>Integridade Física (HP)</label>
-                    <div class="stepper" style="margin: 0 auto;">
-                        <button onclick="updatePlayerVital(${myIndex}, 'hp', -1)">-</button>
-                        <input type="text" value="${myPlayerObj.hp}" readonly>
-                        <button onclick="updatePlayerVital(${myIndex}, 'hp', 1)">+</button>
-                    </div>
-                </div>
-                <div class="vital-stat" style="border-bottom: 2px solid var(--text-base);">
-                    <label>Defesa Cinética</label>
-                    <div class="stepper" style="margin: 0 auto;">
-                        <button onclick="updatePlayerVital(${myIndex}, 'def', -1)">-</button>
-                        <input type="text" value="${myPlayerObj.def}" readonly>
-                        <button onclick="updatePlayerVital(${myIndex}, 'def', 1)">+</button>
-                    </div>
-                </div>
-                <div class="vital-stat" style="border-bottom: 2px solid var(--flux-purple);">
-                    <label>Mente (Insanidade)</label>
-                    <div class="stepper" style="margin: 0 auto;">
-                        <button onclick="updatePlayerVital(${myIndex}, 'ins', -5)">-</button>
-                        <input type="text" value="${myPlayerObj.ins}" style="color:${myPlayerObj.ins > 60 ? 'var(--alert-red)' : '#fff'};" readonly>
-                        <button onclick="updatePlayerVital(${myIndex}, 'ins', 5)">+</button>
-                    </div>
-                </div>
-            `;
-        }
-
-        window.renderInitiativeList(camp, 'player_init_list', false);
-        window.renderLogs(camp, 'player_log_box');
-    };
-
-    // ==========================================================================
-    // 7. TRACKER DE COMBATE / INICIATIVA
-    // ==========================================================================
-    window.addInitiative = function() {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp) return;
-        
-        const nameInput = document.getElementById('init_name');
-        const valInput = document.getElementById('init_val');
-        
-        const name = nameInput ? nameInput.value.trim() : "";
-        const val = valInput ? parseInt(valInput.value) || 0 : 0;
-        
-        if (!name) return;
-
-        camp.combatTracker.entities.push({ name: name, value: val, tempHp: 0 });
-        camp.combatTracker.entities.sort((a,b) => b.value - a.value);
-        
-        if (nameInput) nameInput.value = ""; 
-        if (valInput) valInput.value = "";
-        
-        window.saveDB();
-    };
-
-    window.removeInitiative = function(index) {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp) return;
-        
-        camp.combatTracker.entities.splice(index, 1);
-        if (camp.combatTracker.activeIndex >= camp.combatTracker.entities.length) {
-            camp.combatTracker.activeIndex = 0;
-        }
-        window.saveDB();
-    };
-
-    window.nextTurn = function() {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp || camp.combatTracker.entities.length === 0) return;
-        
-        camp.combatTracker.activeIndex++;
-        if (camp.combatTracker.activeIndex >= camp.combatTracker.entities.length) {
-            camp.combatTracker.activeIndex = 0;
-        }
-        window.saveDB();
-    };
-
-    window.updateInitHp = function(index, mod) {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp || !camp.combatTracker.entities[index]) return;
-        
-        camp.combatTracker.entities[index].tempHp += mod;
-        window.saveDB();
-    };
-
-    window.renderInitiativeList = function(camp, containerId, isMaster) {
-        const box = document.getElementById(containerId);
-        if (!box) return;
-        
-        if (camp.combatTracker.entities.length === 0) { 
-            box.innerHTML = "<span style='font-size:0.75rem; color:var(--text-muted);'>Nenhum radar de combate ativo.</span>"; 
-            return; 
-        }
-
-        box.innerHTML = camp.combatTracker.entities.map((ent, idx) => {
-            const isActive = idx === camp.combatTracker.activeIndex ? "active-turn" : "";
-            let html = `<div class="init-row ${isActive}">
-                <div style="display:flex; flex-direction:column;">
-                    <strong style="color:#fff;">${ent.name}</strong>
-                    <span style="font-size:0.7rem; color:var(--success-green);">[Mod: ${ent.value}]</span>
-                </div>`;
-
-            if (isMaster) {
-                html += `
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div class="stepper" style="transform: scale(0.85); transform-origin: right;">
-                        <button onclick="updateInitHp(${idx}, -1)">-</button>
-                        <input type="text" value="${ent.tempHp}" readonly>
-                        <button onclick="updateInitHp(${idx}, 1)">+</button>
-                    </div>
-                    <button class="btn btn-danger" style="padding:4px; font-size:0.7rem;" onclick="removeInitiative(${idx})">X</button>
-                </div>`;
+        // ==========================================================================
+        // 4. MOTOR DE SINCRONIZAÇÃO EM TEMPO REAL (ONSNAPSHOT)
+        // ==========================================================================
+        window.enterCampaign = function(id) {
+            window.activeCampaignId = id;
+            const camp = window.db.campaigns.find(c => c.id === id);
+            if (!camp) return;
+            
+            if (camp.master === window.db.currentUser) {
+                switchView('view-master');
+                document.getElementById('master_camp_name').textContent = camp.name;
+                document.getElementById('master_camp_id').textContent = camp.id;
             } else {
-                html += `<div style="font-size:0.8rem; color:var(--text-muted);">HP Track: ${ent.tempHp}</div>`;
+                switchView('view-player');
             }
-            html += `</div>`;
-            return html;
-        }).join("");
-    };
 
-    // ==========================================================================
-    // 8. ROLAGEM DE DADOS E REGISTROS DE SISTEMA (LOGS)
-    // ==========================================================================
-    window.rollDiceGlobal = function(faces) {
-        const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
-        if (!camp) return;
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+            
+            unsubscribeSnapshot = onSnapshot(doc(dbFirebase, "campanhas", id), (docSnapshot) => {
+                if (docSnapshot.exists()) {
+                    const cloudData = docSnapshot.data();
+                    const idx = window.db.campaigns.findIndex(c => c.id === id);
+                    if (idx !== -1) {
+                        window.db.campaigns[idx] = cloudData;
+                    } else {
+                        window.db.campaigns.push(cloudData);
+                    }
+                    window.saveDB(true); 
+                    window.syncDashboard(cloudData); 
+                } else {
+                    alert("O Sinal desta campanha foi perdido ou apagado pelo mestre.");
+                    window.leaveDashboard();
+                }
+            }, (error) => {
+                console.error("Erro na sincronização em tempo real:", error);
+            });
+        };
 
-        const result = Math.floor(Math.random() * faces) + 1;
-        const time = new Date().toLocaleTimeString('pt-BR');
-        let logStr = `<span class="log-timestamp">[${time}]</span> <span style="color:#fff;">[${window.db.currentUser}]</span> rolou D${faces} -> <strong style="color:var(--text-base);">${result}</strong>`;
+        window.leaveDashboard = function() {
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+                unsubscribeSnapshot = null;
+            }
+            window.activeCampaignId = null;
+            switchView('view-lobby');
+            
+            const mPanel = document.getElementById('master_main_panel');
+            if (mPanel) mPanel.className = "terminal-panel";
+            
+            const pHeader = document.getElementById('player_env_header');
+            if (pHeader) pHeader.className = "dashboard-header";
+        };
 
-        if (faces === 20 && result === 20) {
-            logStr += ` <span class="log-crit">>> SINAL CRÍTICO <<</span>`;
-        } else if (faces === 20 && result === 1) {
-            logStr += ` <span style="color: var(--alert-red); font-weight: bold;">>> FALHA CRÍTICA <<</span>`;
-        }
-        
-        camp.logs.push(logStr);
-        
-        // Mantém o tamanho do array de logs em um máximo de 50 entradas para evitar sobrecarga no banco de dados.
-        if (camp.logs.length > 50) {
-            camp.logs.shift(); 
-        }
-        
-        window.saveDB();
-    };
+        window.copyId = function() {
+            if (!window.activeCampaignId) return;
+            navigator.clipboard.writeText(window.activeCampaignId);
+            alert("ID de Conexão copiado para a área de transferência.");
+        };
 
-    window.renderLogs = function(camp, containerId) {
-        const box = document.getElementById(containerId);
-        if (!box) return;
-        
-        box.innerHTML = camp.logs.map(l => `<div class="log-entry">${l}</div>`).join("");
-        // Auto-scroll para o fundo
-        box.scrollTop = box.scrollHeight;
-    };
+        window.syncDashboard = function(camp) {
+            if (!camp) {
+                camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+                if (!camp) return window.leaveDashboard();
+            }
 
-    // ==========================================================================
-    // 9. INICIALIZAÇÃO
-    // ==========================================================================
-    window.onload = function() {
-        window.renderLobbyGrid();
-    };
-</script>
+            if (camp.master === window.db.currentUser) {
+                window.renderMasterDashboard(camp);
+            } else {
+                window.renderPlayerDashboard(camp);
+            }
+        };
+
+        window.syncBackToFichasLocal = function(charId, stat, value) {
+            let localFichas = localStorage.getItem('gears_desert_db');
+            if(localFichas) {
+                let fichasDB = JSON.parse(localFichas);
+                let char = fichasDB.characters.find(c => c.id === charId);
+                if(char) {
+                    if(stat === 'hp') char.status.hp_cur = value;
+                    if(stat === 'def') char.status.def_cur = value;
+                    if(stat === 'ins') char.status.ins_cur = value;
+                    localStorage.setItem('gears_desert_db', JSON.stringify(fichasDB));
+                }
+            }
+        };
+
+        // ==========================================================================
+        // 5. RENDERIZAÇÃO E LÓGICA DO MESTRE
+        // ==========================================================================
+        window.renderMasterDashboard = function(camp) {
+            if(document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+                const checkedGea = document.querySelector(`input[name="gea"][value="${camp.geaLevel}"]`);
+                if (checkedGea) checkedGea.checked = true;
+                
+                const statusInput = document.getElementById('master_flux_status');
+                if (statusInput) statusInput.value = camp.instabilityStatus;
+                
+                const loreNotes = document.getElementById('master_lore_notes');
+                if (loreNotes) loreNotes.value = camp.loreNotes || "";
+                
+                const factionNotes = document.getElementById('master_faction_notes');
+                if (factionNotes) factionNotes.value = camp.factionNotes || "";
+                
+                const secretNotes = document.getElementById('master_secret_notes');
+                if (secretNotes) secretNotes.value = camp.masterNotes || "";
+            }
+
+            const panel = document.getElementById('master_main_panel');
+            if (panel) {
+                panel.className = "terminal-panel";
+                if (camp.instabilityStatus === "Crítico") panel.classList.add("env-critical");
+                if (camp.instabilityStatus === "Calamidade") panel.classList.add("env-calamity");
+            }
+
+            const pGrid = document.getElementById('master_players_grid');
+            if (pGrid) {
+                pGrid.innerHTML = camp.players.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Sem jogadores conectados.</span>" : "";
+                camp.players.forEach((p, idx) => {
+                    pGrid.innerHTML += `
+                        <div class="entity-card">
+                            <div class="entity-card-header">
+                                <span>${p.name}</span>
+                                <span style="font-size:0.7rem; color:var(--text-muted); font-weight:normal;">[${p.owner}]</span>
+                            </div>
+                            <div class="vital-row">
+                                <span>HP</span>
+                                <div class="stepper">
+                                    <button onclick="updatePlayerVital(${idx}, 'hp', -1)">-</button>
+                                    <input type="text" value="${p.hp}" readonly>
+                                    <button onclick="updatePlayerVital(${idx}, 'hp', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="vital-row">
+                                <span>Defesa</span>
+                                <div class="stepper">
+                                    <button onclick="updatePlayerVital(${idx}, 'def', -1)">-</button>
+                                    <input type="text" value="${p.def}" readonly>
+                                    <button onclick="updatePlayerVital(${idx}, 'def', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="vital-row">
+                                <span style="color:var(--flux-purple)">Insanidade</span>
+                                <div class="stepper">
+                                    <button onclick="updatePlayerVital(${idx}, 'ins', -5)">-</button>
+                                    <input type="text" value="${p.ins}" readonly>
+                                    <button onclick="updatePlayerVital(${idx}, 'ins', 5)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            const bGrid = document.getElementById('master_bestiary_grid');
+            if (bGrid) {
+                bGrid.innerHTML = camp.bestiary.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Bestiário vazio.</span>" : "";
+                camp.bestiary.forEach((b, idx) => {
+                    const color = b.type === 'NPC' ? 'var(--success-green)' : 'var(--alert-red)';
+                    bGrid.innerHTML += `
+                        <div class="entity-card">
+                            <div class="entity-card-header" style="color:${color}">
+                                <span>${b.name} [${b.type}]</span>
+                                <button style="background:none; border:none; color:var(--alert-red); cursor:pointer;" onclick="deleteEntity('bestiary', ${idx})">✕</button>
+                            </div>
+                            <div class="vital-row">
+                                <span>HP Tracker</span>
+                                <div class="stepper">
+                                    <button onclick="updateBestiaryHp(${idx}, -1)">-</button>
+                                    <input type="text" value="${b.hp}" readonly>
+                                    <button onclick="updateBestiaryHp(${idx}, 1)">+</button>
+                                </div>
+                            </div>
+                            <div style="font-size:0.75rem; margin-top:5px; color:var(--text-muted);">Def: ${b.def} | Notas: ${b.notes}</div>
+                            <button class="btn btn-flux" style="width:100%; margin-top:10px; padding:4px; font-size:0.7rem;" onclick="sendToInitiative('${b.name}')">Jogar na Iniciativa</button>
+                        </div>
+                    `;
+                });
+            }
+
+            const aGrid = document.getElementById('master_arsenal_grid');
+            if (aGrid) {
+                aGrid.innerHTML = camp.armory.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Cofre vazio.</span>" : "";
+                camp.armory.forEach((a, idx) => {
+                    aGrid.innerHTML += `
+                        <div class="entity-card">
+                            <div class="entity-card-header">
+                                <span>${a.name}</span>
+                                <button style="background:none; border:none; color:var(--alert-red); cursor:pointer;" onclick="deleteEntity('armory', ${idx})">✕</button>
+                            </div>
+                            <div style="font-size:0.75rem; margin-top:5px; color:var(--text-base);">Tipo: [${a.type}]</div>
+                            <div style="font-size:0.75rem; margin-top:5px; color:var(--text-muted);">Registro: ${a.notes}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            window.renderInitiativeList(camp, 'master_init_list', true);
+            window.renderLogs(camp, 'master_log_box');
+        };
+
+        window.updateMasterEnv = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const selectedGea = document.querySelector('input[name="gea"]:checked');
+            camp.geaLevel = selectedGea ? parseInt(selectedGea.value) : 0;
+            
+            const fluxStatus = document.getElementById('master_flux_status');
+            if (fluxStatus) camp.instabilityStatus = fluxStatus.value;
+            
+            window.saveDB();
+        };
+
+        window.saveTextAreas = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            camp.loreNotes = document.getElementById('master_lore_notes').value;
+            camp.factionNotes = document.getElementById('master_faction_notes').value;
+            camp.masterNotes = document.getElementById('master_secret_notes').value;
+            
+            window.saveDB();
+        };
+
+        window.updatePlayerVital = function(pIndex, stat, modifier) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp.players[pIndex]) return;
+            
+            let val = camp.players[pIndex][stat] + modifier;
+            if (val < 0) val = 0;
+            if (stat === 'ins' && val > 100) val = 100; 
+            
+            camp.players[pIndex][stat] = val;
+            
+            if(camp.players[pIndex].owner === window.db.currentUser) {
+                window.syncBackToFichasLocal(camp.players[pIndex].charId, stat, val);
+            }
+            
+            window.saveDB();
+        };
+
+        window.addBestiaryEntry = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const nameInput = document.getElementById('bestiary_name');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if(!name) return;
+            
+            camp.bestiary.push({
+                name: name, 
+                type: document.getElementById('bestiary_type').value,
+                hp: parseInt(document.getElementById('bestiary_hp').value) || 0,
+                def: parseInt(document.getElementById('bestiary_def').value) || 0,
+                notes: document.getElementById('bestiary_notes').value
+            });
+            
+            nameInput.value = ""; 
+            document.getElementById('bestiary_notes').value = "";
+            window.saveDB();
+        };
+
+        window.updateBestiaryHp = function(idx, modifier) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp.bestiary[idx]) return;
+            
+            camp.bestiary[idx].hp += modifier;
+            window.saveDB();
+        };
+
+        window.addArsenalEntry = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const nameInput = document.getElementById('arsenal_name');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if(!name) return;
+            
+            camp.armory.push({
+                name: name, 
+                type: document.getElementById('arsenal_type').value,
+                notes: document.getElementById('arsenal_notes').value
+            });
+            
+            nameInput.value = ""; 
+            document.getElementById('arsenal_notes').value = "";
+            window.saveDB();
+        };
+
+        window.deleteEntity = function(arrayName, idx) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp[arrayName]) return;
+            
+            camp[arrayName].splice(idx, 1);
+            window.saveDB();
+        };
+
+        window.sendToInitiative = function(name) {
+            const inputName = document.getElementById('init_name');
+            const inputVal = document.getElementById('init_val');
+            if (inputName && inputVal) {
+                inputName.value = name;
+                inputVal.focus();
+            }
+        };
+
+        // ==========================================================================
+        // 6. RENDERIZAÇÃO E LÓGICA DO JOGADOR
+        // ==========================================================================
+        window.renderPlayerDashboard = function(camp) {
+            const campName = document.getElementById('player_camp_name');
+            if (campName) campName.textContent = camp.name;
+            
+            const geaVal = document.getElementById('player_gea_val');
+            if (geaVal) geaVal.textContent = camp.geaLevel;
+            
+            const fluxVal = document.getElementById('player_flux_val');
+            if (fluxVal) fluxVal.textContent = camp.instabilityStatus;
+
+            const header = document.getElementById('player_env_header');
+            if (header) {
+                header.className = "dashboard-header";
+                if (camp.instabilityStatus === "Crítico") header.classList.add("env-critical");
+                if (camp.instabilityStatus === "Calamidade") header.classList.add("env-calamity");
+            }
+
+            const myIndex = camp.players.findIndex(p => p.owner === window.db.currentUser);
+            const myPlayerObj = camp.players[myIndex];
+            
+            const vBox = document.getElementById('player_vitals_display');
+            if (vBox && myPlayerObj) {
+                vBox.innerHTML = `
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--success-green);">
+                        <label>Integridade Física (HP)</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'hp', -1)">-</button>
+                            <input type="text" value="${myPlayerObj.hp}" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'hp', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--text-base);">
+                        <label>Defesa Cinética</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'def', -1)">-</button>
+                            <input type="text" value="${myPlayerObj.def}" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'def', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--flux-purple);">
+                        <label>Mente (Insanidade)</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'ins', -5)">-</button>
+                            <input type="text" value="${myPlayerObj.ins}" style="color:${myPlayerObj.ins > 60 ? 'var(--alert-red)' : '#fff'};" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'ins', 5)">+</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            window.renderInitiativeList(camp, 'player_init_list', false);
+            window.renderLogs(camp, 'player_log_box');
+        };
+
+        // ==========================================================================
+        // 7. TRACKER DE COMBATE / INICIATIVA
+        // ==========================================================================
+        window.addInitiative = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const nameInput = document.getElementById('init_name');
+            const valInput = document.getElementById('init_val');
+            
+            const name = nameInput ? nameInput.value.trim() : "";
+            const val = valInput ? parseInt(valInput.value) || 0 : 0;
+            
+            if (!name) return;
+
+            camp.combatTracker.entities.push({ name: name, value: val, tempHp: 0 });
+            camp.combatTracker.entities.sort((a,b) => b.value - a.value);
+            
+            if (nameInput) nameInput.value = ""; 
+            if (valInput) valInput.value = "";
+            
+            window.saveDB();
+        };
+
+        window.removeInitiative = function(index) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            camp.combatTracker.entities.splice(index, 1);
+            if (camp.combatTracker.activeIndex >= camp.combatTracker.entities.length) {
+                camp.combatTracker.activeIndex = 0;
+            }
+            window.saveDB();
+        };
+
+        window.nextTurn = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || camp.combatTracker.entities.length === 0) return;
+            
+            camp.combatTracker.activeIndex++;
+            if (camp.combatTracker.activeIndex >= camp.combatTracker.entities.length) {
+                camp.combatTracker.activeIndex = 0;
+            }
+            window.saveDB();
+        };
+
+        window.updateInitHp = function(index, mod) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp.combatTracker.entities[index]) return;
+            
+            camp.combatTracker.entities[index].tempHp += mod;
+            window.saveDB();
+        };
+
+        window.renderInitiativeList = function(camp, containerId, isMaster) {
+            const box = document.getElementById(containerId);
+            if (!box) return;
+            
+            if (camp.combatTracker.entities.length === 0) { 
+                box.innerHTML = "<span style='font-size:0.75rem; color:var(--text-muted);'>Nenhum radar de combate ativo.</span>"; 
+                return; 
+            }
+
+            box.innerHTML = camp.combatTracker.entities.map((ent, idx) => {
+                const isActive = idx === camp.combatTracker.activeIndex ? "active-turn" : "";
+                let html = `<div class="init-row ${isActive}">
+                    <div style="display:flex; flex-direction:column;">
+                        <strong style="color:#fff;">${ent.name}</strong>
+                        <span style="font-size:0.7rem; color:var(--success-green);">[Mod: ${ent.value}]</span>
+                    </div>`;
+
+                if (isMaster) {
+                    html += `
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div class="stepper" style="transform: scale(0.85); transform-origin: right;">
+                            <button onclick="updateInitHp(${idx}, -1)">-</button>
+                            <input type="text" value="${ent.tempHp}" readonly>
+                            <button onclick="updateInitHp(${idx}, 1)">+</button>
+                        </div>
+                        <button class="btn btn-danger" style="padding:4px; font-size:0.7rem;" onclick="removeInitiative(${idx})">X</button>
+                    </div>`;
+                } else {
+                    html += `<div style="font-size:0.8rem; color:var(--text-muted);">HP Track: ${ent.tempHp}</div>`;
+                }
+                html += `</div>`;
+                return html;
+            }).join("");
+        };
+
+        // ==========================================================================
+        // 8. ROLAGEM DE DADOS E REGISTROS DE SISTEMA (LOGS)
+        // ==========================================================================
+        window.rollDiceGlobal = function(faces) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+
+            const result = Math.floor(Math.random() * faces) + 1;
+            const time = new Date().toLocaleTimeString('pt-BR');
+            let logStr = `<span class="log-timestamp">[${time}]</span> <span style="color:#fff;">[${window.db.currentUser}]</span> rolou D${faces} -> <strong style="color:var(--text-base);">${result}</strong>`;
+
+            if (faces === 20 && result === 20) {
+                logStr += ` <span class="log-crit">>> SINAL CRÍTICO <<</span>`;
+            } else if (faces === 20 && result === 1) {
+                logStr += ` <span style="color: var(--alert-red); font-weight: bold;">>> FALHA CRÍTICA <<</span>`;
+            }
+            
+            camp.logs.push(logStr);
+            
+            if (camp.logs.length > 50) {
+                camp.logs.shift(); 
+            }
+            
+            window.saveDB();
+        };
+
+        // ==========================================================================
+        // 8.5 INTERFACE DE CONVERSA EM TEMPO REAL (CHAT MOTOR)
+        // ==========================================================================
+        window.sendChatMessage = function(senderType = 'player') {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+
+            const inputId = senderType === 'master' ? 'chat_input_master' : 'chat_input';
+            const input = document.getElementById(inputId);
+            const msg = input ? input.value.trim() : "";
+            if (!msg) return;
+
+            const time = new Date().toLocaleTimeString('pt-BR');
+            const nameColor = senderType === 'master' ? 'var(--alert-red)' : 'var(--success-green)';
+            let chatStr = `<span class="log-timestamp">[${time}]</span> <strong style="color:${nameColor}">[${window.db.currentUser}]:</strong> <span style="color:#fff;">${msg}</span>`;
+
+            camp.logs.push(chatStr);
+            
+            if (camp.logs.length > 50) camp.logs.shift();
+
+            input.value = ""; 
+            window.saveDB();  
+        };
+
+        window.renderLogs = function(camp, containerId) {
+            const box = document.getElementById(containerId);
+            if (!box) return;
+            
+            box.innerHTML = camp.logs.map(l => `<div class="log-entry">${l}</div>`).join("");
+            box.scrollTop = box.scrollHeight;
+        };
+
+        // ==========================================================================
+        // 9. INICIALIZAÇÃO
+        // ==========================================================================
+        window.onload = function() {
+            window.renderLobbyGrid();
+        };
+    </script>
+</body>
+</html>
+        <script type="module">
+        // ==========================================================================
+        // 1. CONFIGURAÇÃO FIREBASE E IMPORTAÇÕES (NÚCLEO)
+        // ==========================================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC9a9k39aToZcZ5_zwWqNM_4vFXELoYoTI",
+            authDomain: "gears-of-desert.firebaseapp.com",
+            projectId: "gears-of-desert",
+            storageBucket: "gears-of-desert.firebasestorage.app",
+            messagingSenderId: "860761444217",
+            appId: "1:860761444217:web:62107c127835d8583aa9a8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const dbFirebase = getFirestore(app);
+
+        // ==========================================================================
+        // 2. ESTADO GLOBAL E GERENCIAMENTO DE DADOS (LOCAL E NUVEM)
+        // ==========================================================================
+        window.db = JSON.parse(localStorage.getItem('gears_desert_nexus')) || { campaigns: [], currentUser: null };
+        window.activeCampaignId = null;
+        let unsubscribeSnapshot = null;
+
+        window.saveDB = async function(skipCloud = false) {
+            localStorage.setItem('gears_desert_nexus', JSON.stringify(window.db));
+            
+            if (window.activeCampaignId && !skipCloud) {
+                const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+                if (camp) {
+                    try {
+                        await setDoc(doc(dbFirebase, "campanhas", window.activeCampaignId), camp);
+                    } catch (error) {
+                        console.error("[ERRO CRÍTICO] Falha ao sincronizar com o Firebase:", error);
+                    }
+                }
+            }
+        };
+
+        window.switchTab = function(tabId, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        };
+
+        // ==========================================================================
+        // 3. AUTENTICAÇÃO E LOBBY (CRIAR E ENTRAR EM SINAIS)
+        // ==========================================================================
+        window.authenticateUser = function() {
+            const nameInput = document.getElementById('auth_username');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if (!name) return alert("Erro: Identificação obrigatória.");
+            
+            window.db.currentUser = name;
+            window.saveDB(true);
+            location.reload();
+        };
+
+        window.generateHash = function() { 
+            return 'GEAR-' + Math.random().toString(36).substr(2, 6).toUpperCase(); 
+        };
+
+        window.renderLobbyGrid = function() {
+            const grid = document.getElementById('lobby_grid');
+            if (!grid) return;
+            grid.innerHTML = "";
+            
+            const myCampaigns = window.db.campaigns.filter(c => 
+                c.master === window.db.currentUser || 
+                c.players.some(p => p.owner === window.db.currentUser)
+            );
+
+            if (myCampaigns.length === 0) {
+                grid.innerHTML = "<span style='color: var(--text-muted); font-size: 0.8rem;'>[ NENHUMA CONEXÃO ESTABELECIDA NO NEXUS. ]</span>";
+                return;
+            }
+
+            myCampaigns.forEach(camp => {
+                const isMaster = camp.master === window.db.currentUser;
+                const roleText = isMaster ? "Mestre" : "Jogador";
+                const roleClass = isMaster ? "role-mestre" : "role-jogador";
+
+                const card = document.createElement('div');
+                card.className = "campaign-card";
+                card.innerHTML = `
+                    <div class="campaign-card-header">
+                        <strong style="color: #fff;">${camp.name}</strong>
+                        <span class="role-badge ${roleClass}">${roleText}</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">[ID de Conexão]: <span style="color:var(--text-base);">${camp.id}</span></div>
+                    <button class="btn" style="width:100%" onclick="enterCampaign('${camp.id}')">Acessar Painel</button>
+                `;
+                grid.appendChild(card);
+            });
+        };
+
+        window.createCampaign = async function() {
+            const nameInput = document.getElementById('create_camp_name');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if (!name) return alert("Erro: Defina a Designação da Campanha.");
+
+            const newCamp = {
+                id: window.generateHash(),
+                name: name,
+                master: window.db.currentUser,
+                geaLevel: 0,
+                instabilityStatus: "Estável",
+                logs: [`[SISTEMA] Conexão Matriz estabelecida. Campanha fundada por ${window.db.currentUser}.`],
+                combatTracker: { activeIndex: -1, entities: [] },
+                players: [],
+                masterNotes: "", loreNotes: "", factionNotes: "",
+                bestiary: [], armory: []
+            };
+
+            window.db.campaigns.push(newCamp);
+            try {
+                await setDoc(doc(dbFirebase, "campanhas", newCamp.id), newCamp);
+                window.saveDB(true);
+                toggleModal('modal-create');
+                window.renderLobbyGrid();
+                alert(`Sinal Fundado! O ID de conexão é: ${newCamp.id}`);
+            } catch(error) {
+                console.error(error);
+                alert("Erro ao criar campanha na nuvem. Verifique sua conexão.");
+            }
+        };
+
+        window.loadCharactersForJoin = function() {
+            const select = document.getElementById('join_character_select');
+            const warning = document.getElementById('join_warning');
+            const btnSync = document.getElementById('btn_sync_join');
+            if (!select) return;
+            
+            select.innerHTML = "";
+
+            let localFichas = localStorage.getItem('gears_desert_db');
+            if(localFichas) {
+                let fichasDB = JSON.parse(localFichas);
+                if(fichasDB.characters && fichasDB.characters.length > 0) {
+                    if(warning) warning.style.display = "none";
+                    if(btnSync) btnSync.disabled = false;
+                    
+                    fichasDB.characters.forEach(char => {
+                        let opt = document.createElement('option');
+                        opt.value = char.id;
+                        opt.textContent = char.bio.name || "Gear Sem Nome";
+                        opt.dataset.hp = char.status.hp_cur || 20;
+                        opt.dataset.hpmax = char.status.hp_max || 20;
+                        opt.dataset.def = char.status.def_cur || 20;
+                        opt.dataset.ins = char.status.ins_cur || 0;
+                        select.appendChild(opt);
+                    });
+                    return;
+                }
+            }
+            
+            if(warning) warning.style.display = "block";
+            if(btnSync) btnSync.disabled = true;
+            select.innerHTML = '<option value="">[Nenhuma Ficha Disponível]</option>';
+        };
+
+        window.joinCampaign = async function() {
+            const idInput = document.getElementById('join_camp_id');
+            const targetId = idInput ? idInput.value.trim().toUpperCase() : "";
+            const charSelect = document.getElementById('join_character_select');
+            
+            if (!targetId || !charSelect || !charSelect.value) return;
+
+            try {
+                const docSnap = await getDoc(doc(dbFirebase, "campanhas", targetId));
+                if (!docSnap.exists()) return alert("SINAL INEXISTENTE. Verifique o ID de Conexão.");
+
+                let camp = docSnap.data();
+
+                if (camp.master === window.db.currentUser || camp.players.some(p => p.owner === window.db.currentUser)) {
+                    return alert("Você já possui vínculo de mesa ativa com este sinal.");
+                }
+
+                const selectedOption = charSelect.options[charSelect.selectedIndex];
+                
+                camp.players.push({
+                    owner: window.db.currentUser,
+                    charId: charSelect.value,
+                    name: selectedOption.textContent,
+                    hp: parseInt(selectedOption.dataset.hp),
+                    hp_max: parseInt(selectedOption.dataset.hpmax),
+                    def: parseInt(selectedOption.dataset.def),
+                    ins: parseInt(selectedOption.dataset.ins)
+                });
+                
+                camp.logs.push(`[SISTEMA] O Gear [${selectedOption.textContent}] (${window.db.currentUser}) sintonizou no canal da mesa.`);
+                
+                window.db.campaigns = window.db.campaigns.filter(c => c.id !== targetId);
+                window.db.campaigns.push(camp);
+                
+                await setDoc(doc(dbFirebase, "campanhas", targetId), camp);
+                window.saveDB(true);
+
+                toggleModal('modal-join');
+                window.renderLobbyGrid();
+                alert("Conexão bem-sucedida! Acesse o painel pelo Lobby.");
+            } catch(error) {
+                console.error(error);
+                alert("Erro crítico ao tentar conectar à nuvem.");
+            }
+        };
+
+        // ==========================================================================
+        // 4. MOTOR DE SINCRONIZAÇÃO EM TEMPO REAL (ONSNAPSHOT)
+        // ==========================================================================
+        window.enterCampaign = function(id) {
+            window.activeCampaignId = id;
+            const camp = window.db.campaigns.find(c => c.id === id);
+            if (!camp) return;
+            
+            if (camp.master === window.db.currentUser) {
+                switchView('view-master');
+                document.getElementById('master_camp_name').textContent = camp.name;
+                document.getElementById('master_camp_id').textContent = camp.id;
+            } else {
+                switchView('view-player');
+            }
+
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+            
+            unsubscribeSnapshot = onSnapshot(doc(dbFirebase, "campanhas", id), (docSnapshot) => {
+                if (docSnapshot.exists()) {
+                    const cloudData = docSnapshot.data();
+                    const idx = window.db.campaigns.findIndex(c => c.id === id);
+                    if (idx !== -1) {
+                        window.db.campaigns[idx] = cloudData;
+                    } else {
+                        window.db.campaigns.push(cloudData);
+                    }
+                    window.saveDB(true); 
+                    window.syncDashboard(cloudData); 
+                } else {
+                    alert("O Sinal desta campanha foi perdido ou apagado pelo mestre.");
+                    window.leaveDashboard();
+                }
+            }, (error) => {
+                console.error("Erro na sincronização em tempo real:", error);
+            });
+        };
+
+        window.leaveDashboard = function() {
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+                unsubscribeSnapshot = null;
+            }
+            window.activeCampaignId = null;
+            switchView('view-lobby');
+            
+            const mPanel = document.getElementById('master_main_panel');
+            if (mPanel) mPanel.className = "terminal-panel";
+            
+            const pHeader = document.getElementById('player_env_header');
+            if (pHeader) pHeader.className = "dashboard-header";
+        };
+
+        window.copyId = function() {
+            if (!window.activeCampaignId) return;
+            navigator.clipboard.writeText(window.activeCampaignId);
+            alert("ID de Conexão copiado para a área de transferência.");
+        };
+
+        window.syncDashboard = function(camp) {
+            if (!camp) {
+                camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+                if (!camp) return window.leaveDashboard();
+            }
+
+            if (camp.master === window.db.currentUser) {
+                window.renderMasterDashboard(camp);
+            } else {
+                window.renderPlayerDashboard(camp);
+            }
+        };
+
+        window.syncBackToFichasLocal = function(charId, stat, value) {
+            let localFichas = localStorage.getItem('gears_desert_db');
+            if(localFichas) {
+                let fichasDB = JSON.parse(localFichas);
+                let char = fichasDB.characters.find(c => c.id === charId);
+                if(char) {
+                    if(stat === 'hp') char.status.hp_cur = value;
+                    if(stat === 'def') char.status.def_cur = value;
+                    if(stat === 'ins') char.status.ins_cur = value;
+                    localStorage.setItem('gears_desert_db', JSON.stringify(fichasDB));
+                }
+            }
+        };
+
+        // ==========================================================================
+        // 5. RENDERIZAÇÃO E LÓGICA DO MESTRE
+        // ==========================================================================
+        window.renderMasterDashboard = function(camp) {
+            if(document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+                const checkedGea = document.querySelector(`input[name="gea"][value="${camp.geaLevel}"]`);
+                if (checkedGea) checkedGea.checked = true;
+                
+                const statusInput = document.getElementById('master_flux_status');
+                if (statusInput) statusInput.value = camp.instabilityStatus;
+                
+                const loreNotes = document.getElementById('master_lore_notes');
+                if (loreNotes) loreNotes.value = camp.loreNotes || "";
+                
+                const factionNotes = document.getElementById('master_faction_notes');
+                if (factionNotes) factionNotes.value = camp.factionNotes || "";
+                
+                const secretNotes = document.getElementById('master_secret_notes');
+                if (secretNotes) secretNotes.value = camp.masterNotes || "";
+            }
+
+            const panel = document.getElementById('master_main_panel');
+            if (panel) {
+                panel.className = "terminal-panel";
+                if (camp.instabilityStatus === "Crítico") panel.classList.add("env-critical");
+                if (camp.instabilityStatus === "Calamidade") panel.classList.add("env-calamity");
+            }
+
+            const pGrid = document.getElementById('master_players_grid');
+            if (pGrid) {
+                pGrid.innerHTML = camp.players.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Sem jogadores conectados.</span>" : "";
+                camp.players.forEach((p, idx) => {
+                    pGrid.innerHTML += `
+                        <div class="entity-card">
+                            <div class="entity-card-header">
+                                <span>${p.name}</span>
+                                <span style="font-size:0.7rem; color:var(--text-muted); font-weight:normal;">[${p.owner}]</span>
+                            </div>
+                            <div class="vital-row">
+                                <span>HP</span>
+                                <div class="stepper">
+                                    <button onclick="updatePlayerVital(${idx}, 'hp', -1)">-</button>
+                                    <input type="text" value="${p.hp}" readonly>
+                                    <button onclick="updatePlayerVital(${idx}, 'hp', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="vital-row">
+                                <span>Defesa</span>
+                                <div class="stepper">
+                                    <button onclick="updatePlayerVital(${idx}, 'def', -1)">-</button>
+                                    <input type="text" value="${p.def}" readonly>
+                                    <button onclick="updatePlayerVital(${idx}, 'def', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="vital-row">
+                                <span style="color:var(--flux-purple)">Insanidade</span>
+                                <div class="stepper">
+                                    <button onclick="updatePlayerVital(${idx}, 'ins', -5)">-</button>
+                                    <input type="text" value="${p.ins}" readonly>
+                                    <button onclick="updatePlayerVital(${idx}, 'ins', 5)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            const bGrid = document.getElementById('master_bestiary_grid');
+            if (bGrid) {
+                bGrid.innerHTML = camp.bestiary.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Bestiário vazio.</span>" : "";
+                camp.bestiary.forEach((b, idx) => {
+                    const color = b.type === 'NPC' ? 'var(--success-green)' : 'var(--alert-red)';
+                    bGrid.innerHTML += `
+                        <div class="entity-card">
+                            <div class="entity-card-header" style="color:${color}">
+                                <span>${b.name} [${b.type}]</span>
+                                <button style="background:none; border:none; color:var(--alert-red); cursor:pointer;" onclick="deleteEntity('bestiary', ${idx})">✕</button>
+                            </div>
+                            <div class="vital-row">
+                                <span>HP Tracker</span>
+                                <div class="stepper">
+                                    <button onclick="updateBestiaryHp(${idx}, -1)">-</button>
+                                    <input type="text" value="${b.hp}" readonly>
+                                    <button onclick="updateBestiaryHp(${idx}, 1)">+</button>
+                                </div>
+                            </div>
+                            <div style="font-size:0.75rem; margin-top:5px; color:var(--text-muted);">Def: ${b.def} | Notas: ${b.notes}</div>
+                            <button class="btn btn-flux" style="width:100%; margin-top:10px; padding:4px; font-size:0.7rem;" onclick="sendToInitiative('${b.name}')">Jogar na Iniciativa</button>
+                        </div>
+                    `;
+                });
+            }
+
+            const aGrid = document.getElementById('master_arsenal_grid');
+            if (aGrid) {
+                aGrid.innerHTML = camp.armory.length === 0 ? "<span style='font-size:0.7rem; color:var(--text-muted);'>Cofre vazio.</span>" : "";
+                camp.armory.forEach((a, idx) => {
+                    aGrid.innerHTML += `
+                        <div class="entity-card">
+                            <div class="entity-card-header">
+                                <span>${a.name}</span>
+                                <button style="background:none; border:none; color:var(--alert-red); cursor:pointer;" onclick="deleteEntity('armory', ${idx})">✕</button>
+                            </div>
+                            <div style="font-size:0.75rem; margin-top:5px; color:var(--text-base);">Tipo: [${a.type}]</div>
+                            <div style="font-size:0.75rem; margin-top:5px; color:var(--text-muted);">Registro: ${a.notes}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            window.renderInitiativeList(camp, 'master_init_list', true);
+            window.renderLogs(camp, 'master_log_box');
+        };
+
+        window.updateMasterEnv = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const selectedGea = document.querySelector('input[name="gea"]:checked');
+            camp.geaLevel = selectedGea ? parseInt(selectedGea.value) : 0;
+            
+            const fluxStatus = document.getElementById('master_flux_status');
+            if (fluxStatus) camp.instabilityStatus = fluxStatus.value;
+            
+            window.saveDB();
+        };
+
+        window.saveTextAreas = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            camp.loreNotes = document.getElementById('master_lore_notes').value;
+            camp.factionNotes = document.getElementById('master_faction_notes').value;
+            camp.masterNotes = document.getElementById('master_secret_notes').value;
+            
+            window.saveDB();
+        };
+
+        window.updatePlayerVital = function(pIndex, stat, modifier) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp.players[pIndex]) return;
+            
+            let val = camp.players[pIndex][stat] + modifier;
+            if (val < 0) val = 0;
+            if (stat === 'ins' && val > 100) val = 100; 
+            
+            camp.players[pIndex][stat] = val;
+            
+            if(camp.players[pIndex].owner === window.db.currentUser) {
+                window.syncBackToFichasLocal(camp.players[pIndex].charId, stat, val);
+            }
+            
+            window.saveDB();
+        };
+
+        window.addBestiaryEntry = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const nameInput = document.getElementById('bestiary_name');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if(!name) return;
+            
+            camp.bestiary.push({
+                name: name, 
+                type: document.getElementById('bestiary_type').value,
+                hp: parseInt(document.getElementById('bestiary_hp').value) || 0,
+                def: parseInt(document.getElementById('bestiary_def').value) || 0,
+                notes: document.getElementById('bestiary_notes').value
+            });
+            
+            nameInput.value = ""; 
+            document.getElementById('bestiary_notes').value = "";
+            window.saveDB();
+        };
+
+        window.updateBestiaryHp = function(idx, modifier) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp.bestiary[idx]) return;
+            
+            camp.bestiary[idx].hp += modifier;
+            window.saveDB();
+        };
+
+        window.addArsenalEntry = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const nameInput = document.getElementById('arsenal_name');
+            const name = nameInput ? nameInput.value.trim() : "";
+            if(!name) return;
+            
+            camp.armory.push({
+                name: name, 
+                type: document.getElementById('arsenal_type').value,
+                notes: document.getElementById('arsenal_notes').value
+            });
+            
+            nameInput.value = ""; 
+            document.getElementById('arsenal_notes').value = "";
+            window.saveDB();
+        };
+
+        window.deleteEntity = function(arrayName, idx) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp[arrayName]) return;
+            
+            camp[arrayName].splice(idx, 1);
+            window.saveDB();
+        };
+
+        window.sendToInitiative = function(name) {
+            const inputName = document.getElementById('init_name');
+            const inputVal = document.getElementById('init_val');
+            if (inputName && inputVal) {
+                inputName.value = name;
+                inputVal.focus();
+            }
+        };
+
+        // ==========================================================================
+        // 6. RENDERIZAÇÃO E LÓGICA DO JOGADOR
+        // ==========================================================================
+        window.renderPlayerDashboard = function(camp) {
+            const campName = document.getElementById('player_camp_name');
+            if (campName) campName.textContent = camp.name;
+            
+            const geaVal = document.getElementById('player_gea_val');
+            if (geaVal) geaVal.textContent = camp.geaLevel;
+            
+            const fluxVal = document.getElementById('player_flux_val');
+            if (fluxVal) fluxVal.textContent = camp.instabilityStatus;
+
+            const header = document.getElementById('player_env_header');
+            if (header) {
+                header.className = "dashboard-header";
+                if (camp.instabilityStatus === "Crítico") header.classList.add("env-critical");
+                if (camp.instabilityStatus === "Calamidade") header.classList.add("env-calamity");
+            }
+
+            const myIndex = camp.players.findIndex(p => p.owner === window.db.currentUser);
+            const myPlayerObj = camp.players[myIndex];
+            
+            const vBox = document.getElementById('player_vitals_display');
+            if (vBox && myPlayerObj) {
+                vBox.innerHTML = `
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--success-green);">
+                        <label>Integridade Física (HP)</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'hp', -1)">-</button>
+                            <input type="text" value="${myPlayerObj.hp}" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'hp', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--text-base);">
+                        <label>Defesa Cinética</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'def', -1)">-</button>
+                            <input type="text" value="${myPlayerObj.def}" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'def', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="vital-stat" style="border-bottom: 2px solid var(--flux-purple);">
+                        <label>Mente (Insanidade)</label>
+                        <div class="stepper" style="margin: 0 auto;">
+                            <button onclick="updatePlayerVital(${myIndex}, 'ins', -5)">-</button>
+                            <input type="text" value="${myPlayerObj.ins}" style="color:${myPlayerObj.ins > 60 ? 'var(--alert-red)' : '#fff'};" readonly>
+                            <button onclick="updatePlayerVital(${myIndex}, 'ins', 5)">+</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            window.renderInitiativeList(camp, 'player_init_list', false);
+            window.renderLogs(camp, 'player_log_box');
+        };
+
+        // ==========================================================================
+        // 7. TRACKER DE COMBATE / INICIATIVA
+        // ==========================================================================
+        window.addInitiative = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            const nameInput = document.getElementById('init_name');
+            const valInput = document.getElementById('init_val');
+            
+            const name = nameInput ? nameInput.value.trim() : "";
+            const val = valInput ? parseInt(valInput.value) || 0 : 0;
+            
+            if (!name) return;
+
+            camp.combatTracker.entities.push({ name: name, value: val, tempHp: 0 });
+            camp.combatTracker.entities.sort((a,b) => b.value - a.value);
+            
+            if (nameInput) nameInput.value = ""; 
+            if (valInput) valInput.value = "";
+            
+            window.saveDB();
+        };
+
+        window.removeInitiative = function(index) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+            
+            camp.combatTracker.entities.splice(index, 1);
+            if (camp.combatTracker.activeIndex >= camp.combatTracker.entities.length) {
+                camp.combatTracker.activeIndex = 0;
+            }
+            window.saveDB();
+        };
+
+        window.nextTurn = function() {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || camp.combatTracker.entities.length === 0) return;
+            
+            camp.combatTracker.activeIndex++;
+            if (camp.combatTracker.activeIndex >= camp.combatTracker.entities.length) {
+                camp.combatTracker.activeIndex = 0;
+            }
+            window.saveDB();
+        };
+
+        window.updateInitHp = function(index, mod) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp || !camp.combatTracker.entities[index]) return;
+            
+            camp.combatTracker.entities[index].tempHp += mod;
+            window.saveDB();
+        };
+
+        window.renderInitiativeList = function(camp, containerId, isMaster) {
+            const box = document.getElementById(containerId);
+            if (!box) return;
+            
+            if (camp.combatTracker.entities.length === 0) { 
+                box.innerHTML = "<span style='font-size:0.75rem; color:var(--text-muted);'>Nenhum radar de combate ativo.</span>"; 
+                return; 
+            }
+
+            box.innerHTML = camp.combatTracker.entities.map((ent, idx) => {
+                const isActive = idx === camp.combatTracker.activeIndex ? "active-turn" : "";
+                let html = `<div class="init-row ${isActive}">
+                    <div style="display:flex; flex-direction:column;">
+                        <strong style="color:#fff;">${ent.name}</strong>
+                        <span style="font-size:0.7rem; color:var(--success-green);">[Mod: ${ent.value}]</span>
+                    </div>`;
+
+                if (isMaster) {
+                    html += `
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div class="stepper" style="transform: scale(0.85); transform-origin: right;">
+                            <button onclick="updateInitHp(${idx}, -1)">-</button>
+                            <input type="text" value="${ent.tempHp}" readonly>
+                            <button onclick="updateInitHp(${idx}, 1)">+</button>
+                        </div>
+                        <button class="btn btn-danger" style="padding:4px; font-size:0.7rem;" onclick="removeInitiative(${idx})">X</button>
+                    </div>`;
+                } else {
+                    html += `<div style="font-size:0.8rem; color:var(--text-muted);">HP Track: ${ent.tempHp}</div>`;
+                }
+                html += `</div>`;
+                return html;
+            }).join("");
+        };
+
+        // ==========================================================================
+        // 8. ROLAGEM DE DADOS E REGISTROS DE SISTEMA (LOGS)
+        // ==========================================================================
+        window.rollDiceGlobal = function(faces) {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+
+            const result = Math.floor(Math.random() * faces) + 1;
+            const time = new Date().toLocaleTimeString('pt-BR');
+            let logStr = `<span class="log-timestamp">[${time}]</span> <span style="color:#fff;">[${window.db.currentUser}]</span> rolou D${faces} -> <strong style="color:var(--text-base);">${result}</strong>`;
+
+            if (faces === 20 && result === 20) {
+                logStr += ` <span class="log-crit">>> SINAL CRÍTICO <<</span>`;
+            } else if (faces === 20 && result === 1) {
+                logStr += ` <span style="color: var(--alert-red); font-weight: bold;">>> FALHA CRÍTICA <<</span>`;
+            }
+            
+            camp.logs.push(logStr);
+            
+            if (camp.logs.length > 50) {
+                camp.logs.shift(); 
+            }
+            
+            window.saveDB();
+        };
+
+        // ==========================================================================
+        // 8.5 INTERFACE DE CONVERSA EM TEMPO REAL (CHAT MOTOR)
+        // ==========================================================================
+        window.sendChatMessage = function(senderType = 'player') {
+            const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+            if (!camp) return;
+
+            const inputId = senderType === 'master' ? 'chat_input_master' : 'chat_input';
+            const input = document.getElementById(inputId);
+            const msg = input ? input.value.trim() : "";
+            if (!msg) return;
+
+            const time = new Date().toLocaleTimeString('pt-BR');
+            const nameColor = senderType === 'master' ? 'var(--alert-red)' : 'var(--success-green)';
+            let chatStr = `<span class="log-timestamp">[${time}]</span> <strong style="color:${nameColor}">[${window.db.currentUser}]:</strong> <span style="color:#fff;">${msg}</span>`;
+
+            camp.logs.push(chatStr);
+            
+            if (camp.logs.length > 50) camp.logs.shift();
+
+            input.value = ""; 
+            window.saveDB();  
+        };
+
+        window.renderLogs = function(camp, containerId) {
+            const box = document.getElementById(containerId);
+            if (!box) return;
+            
+            box.innerHTML = camp.logs.map(l => `<div class="log-entry">${l}</div>`).join("");
+            box.scrollTop = box.scrollHeight;
+        };
+
+        // ==========================================================================
+        // 9. INICIALIZAÇÃO
+        // ==========================================================================
+        window.onload = function() {
+            window.renderLobbyGrid();
+        };
+    </script>
 </body>
 </html>
