@@ -384,6 +384,12 @@
                             <button class="btn" onclick="rollDiceGlobal(100)">d100</button>
                         </div>
                         <div class="console-log" id="master_log_box"></div>
+                        <div id="master_log_box" class="log-box"></div>
+
+<div style="display: flex; gap: 5px; margin-top: 10px;">
+    <input type="text" id="chat_input" placeholder="Digite uma mensagem no Nexus..." style="flex: 1; background: #111; color: #fff; border: 1px solid var(--text-muted); padding: 5px;" onkeydown="if(event.key === 'Enter') sendChatMessage()">
+    <button class="btn" onclick="sendChatMessage()">Enviar</button>
+</div>
                     </div>
                 </div>
             </div>
@@ -1008,6 +1014,27 @@
         }
     </script> 
 <script type="module">
+
+    window.sendChatMessage = function() {
+    const camp = window.db.campaigns.find(c => c.id === window.activeCampaignId);
+    if (!camp) return;
+
+    const input = document.getElementById('chat_input');
+    const msg = input ? input.value.trim() : "";
+    if (!msg) return;
+
+    const time = new Date().toLocaleTimeString('pt-BR');
+    // Formata a mensagem com o nome de quem enviou
+    let chatStr = `<span class="log-timestamp">[${time}]</span> <strong style="color:var(--success-green);">[${window.db.currentUser}]:</strong> <span style="color:#fff;">${msg}</span>`;
+
+    camp.logs.push(chatStr);
+    
+    // Mantém o limite de mensagens para não travar o banco
+    if (camp.logs.length > 50) camp.logs.shift();
+
+    input.value = ""; // Limpa a caixa de texto
+    window.saveDB();  // Envia para a nuvem em tempo real
+};
     // ==========================================================================
     // 1. CONFIGURAÇÃO FIREBASE E IMPORTAÇÕES (NÚCLEO)
     // ==========================================================================
